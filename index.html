@@ -1,176 +1,44 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>نظام تقييم الطلاب</title>
-  <link rel="stylesheet" href="style.css">
-  <style>
-    body {
-      background: #f4f6fa;
-      font-family: 'Segoe UI', sans-serif;
-      margin: 0;
-      direction: rtl;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-    }
-    .container {
-      background: white;
-      padding: 40px;
-      border-radius: 10px;
-      width: 100%;
-      max-width: 400px;
-      box-shadow: 0 0 15px rgba(0,0,0,0.1);
-      text-align: center;
-    }
-    .logo {
-      width: 100px;
-      margin-bottom: 15px;
-    }
-    h2 {
-      color: #007bff;
-      margin-bottom: 5px;
-    }
-    .tab-buttons {
-      display: flex;
-      margin-bottom: 20px;
-    }
-    .tab-buttons button {
-      flex: 1;
-      padding: 10px;
-      cursor: pointer;
-      border: 1px solid #007bff;
-      background: white;
-      color: #007bff;
-      font-weight: bold;
-    }
-    .tab-buttons button.active {
-      background: #007bff;
-      color: white;
-    }
-    input, .gender-row, .type-row {
-      width: 100%;
-      margin: 8px 0;
-      padding: 10px;
-      border-radius: 5px;
-      border: 1px solid #ccc;
-      font-size: 16px;
-    }
-    .form-button {
-      width: 100%;
-      padding: 12px;
-      background: #007bff;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      font-size: 16px;
-      margin-top: 15px;
-      cursor: pointer;
-    }
-    .alt-button {
-      background: #6c757d !important;
-    }
-    .row-options {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin: 10px 0;
-    }
-    .row-options .option-box {
-      flex: 1;
-      text-align: center;
-    }
-    .row-options .divider {
-      width: 1px;
-      height: 50px;
-      background: #ccc;
-    }
-    label {
-      display: block;
-      margin: 5px 0;
-    }
-    footer {
-      margin-top: 20px;
-      font-size: 13px;
-      color: #666;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <img src="logo.png" class="logo" alt="logo">
-    <h2>معهد الدراسات الإدارية والفنية</h2>
-    <p>نظام تقييم الطلاب</p>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
 
-    <div class="tab-buttons">
-      <button class="tab-btn active" onclick="toggleTab(true)">تسجيل الدخول</button>
-      <button class="tab-btn" onclick="toggleTab(false)">إنشاء حساب</button>
-    </div>
+<script>
+  const auth = firebase.auth();
+  const db = firebase.firestore();
 
-    <!-- تسجيل الدخول -->
-    <div id="login-tab">
-      <input type="email" placeholder="البريد الإلكتروني">
-      <input type="password" placeholder="كلمة المرور">
+  function toggleTab(isLogin) {
+    document.getElementById("login-tab").style.display = isLogin ? "block" : "none";
+    document.getElementById("register-tab").style.display = isLogin ? "none" : "block";
+    const btns = document.querySelectorAll('.tab-btn');
+    btns[0].classList.toggle('active', isLogin);
+    btns[1].classList.toggle('active', !isLogin);
+  }
 
-      <div class="row-options">
-        <div class="option-box">
-          <label><input type="radio" name="login-type" checked> معلم</label>
-        </div>
-        <div class="divider"></div>
-        <div class="option-box">
-          <label><input type="radio" name="login-type"> طالب</label>
-        </div>
-      </div>
+  document.querySelector("#login-tab .form-button").onclick = async () => {
+    const email = document.querySelector("#login-tab input[type=email]").value;
+    const password = document.querySelector("#login-tab input[type=password]").value;
+    const role = document.querySelector("#login-tab input[name='login-type']:checked").nextSibling.textContent.trim();
 
-      <button class="form-button">تسجيل الدخول</button>
-      <button class="form-button alt-button" onclick="location.href='student-evaluation.html'">عرض التقييم</button>
-    </div>
+    if (!email || !password) return alert("يرجى إدخال البريد وكلمة المرور");
 
-    <!-- إنشاء حساب -->
-    <div id="register-tab" style="display: none;">
-      <input type="text" placeholder="الاسم الكامل">
-      <input type="email" placeholder="البريد الإلكتروني">
-      <input type="password" placeholder="كلمة المرور">
-      <input type="text" placeholder="رقم الهاتف">
+    try {
+      const userCred = await auth.signInWithEmailAndPassword(email, password);
+      const userId = userCred.user.uid;
+      const userDoc = await db.collection("users").doc(userId).get();
+      const userData = userDoc.data();
 
-      <div class="row-options">
-        <div class="option-box">
-          <label><input type="radio" name="user-type" checked> معلم</label>
-        </div>
-        <div class="divider"></div>
-        <div class="option-box">
-          <label><input type="radio" name="user-type"> طالب</label>
-        </div>
-      </div>
+      if (!userData) return alert("لا توجد بيانات لهذا المستخدم.");
 
-      <div class="row-options">
-        <div class="option-box">
-          <label><input type="radio" name="gender" checked> ذكر</label>
-        </div>
-        <div class="divider"></div>
-        <div class="option-box">
-          <label><input type="radio" name="gender"> أنثى</label>
-        </div>
-      </div>
-
-      <button class="form-button">إنشاء الحساب</button>
-      <button class="form-button alt-button" onclick="location.href='student-evaluation.html'">عرض التقييم</button>
-    </div>
-
-    <footer>التعليم ليس فقط درجات، بل بناء أجيال.</footer>
-  </div>
-
-  <script>
-    function toggleTab(isLogin) {
-      document.getElementById("login-tab").style.display = isLogin ? "block" : "none";
-      document.getElementById("register-tab").style.display = isLogin ? "none" : "block";
-
-      const btns = document.querySelectorAll('.tab-btn');
-      btns[0].classList.toggle('active', isLogin);
-      btns[1].classList.toggle('active', !isLogin);
+      if (userData.type === 'معلم' && role === 'معلم') {
+        location.href = "teacher.html";
+      } else if (userData.type === 'طالب' && role === 'طالب') {
+        location.href = "student.html";
+      } else {
+        alert("دور المستخدم لا يتطابق مع نوع الحساب.");
+      }
+    } catch (err) {
+      alert("خطأ في تسجيل الدخول: " + err.message);
     }
-  </script>
-</body>
-</html>
+  };
+</script>
