@@ -9,24 +9,30 @@ function showTab(name) {
 }
 
 // تسجيل دخول
-document.getElementById('login-form').addEventListener('submit', async e => {
-  e.preventDefault();
+document.getElementById('btn-login-action').onclick = async () => {
   const email = document.getElementById('login-email').value;
   const password = document.getElementById('login-password').value;
-  const role = document.querySelector('input[name="login-role"]:checked').value;
+
   try {
-    const cred = await auth.signInWithEmailAndPassword(email, password);
-    const doc = await db.collection('users').doc(cred.user.uid).get();
-    if (doc.exists && doc.data().role === role) {
-      location.href = role === 'teacher' ? 'teacher.html' : 'student.html';
+    const cred = await firebase.auth().signInWithEmailAndPassword(email, password);
+    const doc = await firebase.firestore().collection('users').doc(cred.user.uid).get();
+
+    if (!doc.exists) return alert('الحساب غير موجود في قاعدة البيانات.');
+
+    const userData = doc.data();
+
+    if (userData.type === 'معلم') {
+      const teacherName = encodeURIComponent(userData.name);
+      window.location.href = `teacher.html?name=${teacherName}`;
     } else {
-      auth.signOut();
-      document.getElementById('login-error').textContent = 'الدور غير مطابق للمستخدم';
+      alert('هذا الحساب ليس للمعلم.');
     }
-  } catch (err) {
-    document.getElementById('login-error').textContent = err.message;
+
+  } catch (e) {
+    alert('خطأ: ' + e.message);
   }
-});
+};
+
 
 // إنشاء حساب
 document.getElementById('register-form').addEventListener('submit', async e => {
@@ -48,3 +54,4 @@ document.getElementById('register-form').addEventListener('submit', async e => {
     document.getElementById('register-error').textContent = err.message;
   }
 });
+
