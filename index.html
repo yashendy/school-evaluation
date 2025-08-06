@@ -1,212 +1,120 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <title>معهد الدراسات - الدخول</title>
+  <meta charset="UTF-8" />
+  <title>نظام تقييم الطلاب</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
   <script src="firebase-config.js"></script>
   <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background: #f5f7fa;
-      text-align: center;
-      padding: 20px;
+    body { margin:0; font-family:'Segoe UI',sans-serif; background:#f5f7fa; text-align:center; direction:rtl; padding:20px;}
+    .container { background:white; max-width:400px; margin:auto; padding:30px; border-radius:8px; box-shadow:0 0 10px rgba(0,0,0,0.1);}
+    img{ width:80px; margin-bottom:10px; }
+    h2{ color:#007bff; margin:0; }
+    .tabs{ display:flex; margin:20px 0; }
+    .tab-btn{ flex:1; padding:10px; cursor:pointer; background:#e0e0e0; border:1px solid #ccc; }
+    .tab-btn.active{ background:#007bff; color:white; font-weight:bold; }
+    input[type=email], input[type=password], input[type=text], input[type=tel] {
+      width:100%; padding:10px; margin:10px 0; border:1px solid #ccc; border-radius:4px; font-size:16px;
     }
-    .container {
-      background: white;
-      max-width: 400px;
-      margin: auto;
-      padding: 30px;
-      border-radius: 8px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    }
-    img { width: 100px; }
-    h2 { color: #0288d1; margin-top: 10px; }
-    .tabs {
-      display: flex;
-      margin: 20px 0;
-    }
-    .tab-btn {
-      flex: 1;
-      padding: 10px;
-      cursor: pointer;
-      background: #e0e0e0;
-      border: 1px solid #ccc;
-    }
-    .tab-btn.active {
-      background: #0288d1;
-      color: white;
-      font-weight: bold;
-    }
-    input[type="text"], input[type="email"], input[type="password"], input[type="tel"] {
-      width: 100%;
-      padding: 10px;
-      margin: 10px 0;
-      font-size: 16px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-    }
-    .role-section {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin: 15px 0;
-    }
-    .divider {
-      width: 2px;
-      height: 40px;
-      background: #ccc;
-    }
-    .radio-box {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-    button.form-button {
-      background: #0288d1;
-      color: white;
-      border: none;
-      padding: 12px;
-      width: 100%;
-      font-size: 18px;
-      border-radius: 6px;
-      cursor: pointer;
-      margin-top: 10px;
-    }
-    .note {
-      margin-top: 15px;
-      font-size: 14px;
-      color: gray;
-    }
+    .role-section{ display:flex; justify-content:space-between; margin:15px 0; }
+    .radio-box{ flex:1; text-align:center; }
+    .divider{ width:2px; background:#ccc; margin:0 5px; }
+    .form-button{ width:100%; padding:12px; background:#007bff; color:white; font-size:16px; border:none; border-radius:6px; cursor:pointer; margin-top:10px; }
+    .note{ margin-top:15px; font-size:14px; color:gray;}
   </style>
 </head>
 <body>
   <div class="container">
-    <img src="logo.png" alt="logo">
+    <img src="logo.png" alt="Logo">
     <h2>معهد الدراسات الإدارية والفنية</h2>
     <p>نظام تقييم الطلاب</p>
 
     <div class="tabs">
-      <div class="tab-btn active" onclick="toggleTab(true)">تسجيل الدخول</div>
-      <div class="tab-btn" onclick="toggleTab(false)">إنشاء حساب</div>
+      <div id="btn-login" class="tab-btn active" onclick="toggleTab(true)">تسجيل الدخول</div>
+      <div id="btn-register" class="tab-btn" onclick="toggleTab(false)">إنشاء حساب</div>
     </div>
 
     <!-- تسجيل الدخول -->
     <div id="login-tab">
-      <input type="email" placeholder="البريد الإلكتروني">
-      <input type="password" placeholder="كلمة المرور">
-
+      <input type="email" id="login-email" placeholder="البريد الإلكتروني">
+      <input type="password" id="login-password" placeholder="كلمة المرور">
       <div class="role-section">
-        <div class="radio-box">
-          <label><input type="radio" name="login-type" checked> معلم</label>
-        </div>
+        <div class="radio-box"><label><input type="radio" name="login-type" checked> معلم</label></div>
         <div class="divider"></div>
-        <div class="radio-box">
-          <label><input type="radio" name="login-type"> طالب</label>
-        </div>
+        <div class="radio-box"><label><input type="radio" name="login-type"> طالب</label></div>
       </div>
-
-      <button class="form-button">تسجيل الدخول</button>
+      <button id="btn-login-action" class="form-button">تسجيل الدخول</button>
     </div>
 
     <!-- إنشاء حساب -->
-    <div id="register-tab" style="display: none;">
-      <input type="text" placeholder="الاسم الكامل">
-      <input type="email" placeholder="البريد الإلكتروني">
-      <input type="password" placeholder="كلمة المرور">
-      <input type="tel" placeholder="رقم الهاتف">
-
+    <div id="register-tab" style="display:none;">
+      <input type="text" id="reg-name" placeholder="الاسم الكامل">
+      <input type="email" id="reg-email" placeholder="البريد الإلكتروني">
+      <input type="password" id="reg-password" placeholder="كلمة المرور">
+      <input type="tel" id="reg-phone" placeholder="رقم الهاتف">
       <div class="role-section">
-        <div class="radio-box">
-          <label><input type="radio" name="type" value="معلم" checked> معلم</label>
-        </div>
+        <div class="radio-box"><label><input type="radio" name="reg-type" value="معلم" checked> معلم</label></div>
         <div class="divider"></div>
-        <div class="radio-box">
-          <label><input type="radio" name="type" value="طالب"> طالب</label>
-        </div>
+        <div class="radio-box"><label><input type="radio" name="reg-type" value="طالب"> طالب</label></div>
       </div>
-
       <div class="role-section">
-        <div class="radio-box">
-          <label><input type="radio" name="gender" value="ذكر" checked> ذكر</label>
-        </div>
+        <div class="radio-box"><label><input type="radio" name="reg-gender" value="ذكر" checked> ذكر</label></div>
         <div class="divider"></div>
-        <div class="radio-box">
-          <label><input type="radio" name="gender" value="أنثى"> أنثى</label>
-        </div>
+        <div class="radio-box"><label><input type="radio" name="reg-gender" value="أنثى"> أنثى</label></div>
       </div>
-
-      <button class="form-button">إنشاء الحساب</button>
+      <button id="btn-register-action" class="form-button">إنشاء الحساب</button>
     </div>
 
     <p class="note">التعليم ليس فقط درجات، بل بناء أجيال.</p>
   </div>
 
   <script>
-    const auth = firebase.auth();
-    const db = firebase.firestore();
-
     function toggleTab(isLogin) {
-      document.getElementById("login-tab").style.display = isLogin ? "block" : "none";
-      document.getElementById("register-tab").style.display = isLogin ? "none" : "block";
-      const btns = document.querySelectorAll('.tab-btn');
-      btns[0].classList.toggle('active', isLogin);
-      btns[1].classList.toggle('active', !isLogin);
+      document.getElementById('login-tab').style.display = isLogin ? 'block' : 'none';
+      document.getElementById('register-tab').style.display = isLogin ? 'none' : 'block';
+      document.getElementById('btn-login').classList.toggle('active', isLogin);
+      document.getElementById('btn-register').classList.toggle('active', !isLogin);
     }
 
-    // تسجيل الدخول
-    document.querySelector("#login-tab .form-button").onclick = async () => {
-      const email = document.querySelector("#login-tab input[type=email]").value;
-      const password = document.querySelector("#login-tab input[type=password]").value;
-      const role = document.querySelector("#login-tab input[name='login-type']:checked").nextSibling.textContent.trim();
-
-      if (!email || !password) return alert("يرجى إدخال البريد وكلمة المرور");
-
-      try {
-        const userCred = await auth.signInWithEmailAndPassword(email, password);
-        const userId = userCred.user.uid;
-        const userDoc = await db.collection("users").doc(userId).get();
-        const userData = userDoc.data();
-
-        if (!userData) return alert("لا توجد بيانات لهذا المستخدم.");
-
-        if (userData.type === 'معلم' && role === 'معلم') {
-          location.href = "teacher.html";
-        } else if (userData.type === 'طالب' && role === 'طالب') {
-          location.href = "student.html";
-        } else {
-          alert("دور المستخدم لا يتطابق مع نوع الحساب.");
+    window.onload = function() {
+      document.getElementById('btn-login-action').onclick = async () => {
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
+        const role = document.querySelector("#login-tab input[name='login-type']:checked").nextSibling.textContent.trim();
+        try {
+          const cred = await firebase.auth().signInWithEmailAndPassword(email, password);
+          const doc = await firebase.firestore().collection('users').doc(cred.user.uid).get();
+          const user = doc.data();
+          if (!user) return alert('حساب غير موجود');
+          if (user.type === role) {
+            location.href = user.type === 'معلم' ? 'teacher.html' : 'student.html';
+          } else alert('الدور لا يتطابق');
+        } catch(e) {
+          alert('خطأ: ' + e.message);
         }
-      } catch (err) {
-        alert("خطأ في تسجيل الدخول: " + err.message);
-      }
-    };
+      };
 
-    // إنشاء الحساب
-    document.querySelector("#register-tab .form-button").onclick = async () => {
-      const inputs = document.querySelectorAll("#register-tab input");
-      const name = inputs[0].value;
-      const email = inputs[1].value;
-      const password = inputs[2].value;
-      const phone = inputs[3].value;
-      const type = document.querySelector("#register-tab input[name='type']:checked").value;
-      const gender = document.querySelector("#register-tab input[name='gender']:checked").value;
-
-      if (!name || !email || !password || !phone) return alert("يرجى تعبئة جميع الحقول");
-
-      try {
-        const userCred = await auth.createUserWithEmailAndPassword(email, password);
-        await db.collection("users").doc(userCred.user.uid).set({
-          name, email, phone, type, gender
-        });
-        alert("تم إنشاء الحساب بنجاح! يمكنك تسجيل الدخول الآن.");
-        toggleTab(true);
-      } catch (err) {
-        alert("حدث خطأ أثناء إنشاء الحساب: " + err.message);
-      }
+      document.getElementById('btn-register-action').onclick = async () => {
+        const name = document.getElementById('reg-name').value.trim();
+        const email = document.getElementById('reg-email').value;
+        const pass = document.getElementById('reg-password').value;
+        const phone = document.getElementById('reg-phone').value;
+        const type = document.querySelector("input[name='reg-type']:checked").value;
+        const gender = document.querySelector("input[name='reg-gender']:checked").value;
+        try {
+          const cred = await firebase.auth().createUserWithEmailAndPassword(email, pass);
+          await firebase.firestore().collection('users').doc(cred.user.uid).set({
+            name, email, phone, type, gender
+          });
+          alert('تم إنشاء الحساب بنجاح');
+          toggleTab(true);
+        } catch(e) {
+          alert('خطأ: ' + e.message);
+        }
+      };
     };
   </script>
 </body>
