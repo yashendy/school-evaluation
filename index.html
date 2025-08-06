@@ -80,6 +80,7 @@
     }
 
     window.onload = function() {
+      // زر تسجيل الدخول
       document.getElementById('btn-login-action').onclick = async () => {
         const email = document.getElementById('login-email').value;
         const password = document.getElementById('login-password').value;
@@ -90,9 +91,14 @@
           const doc = await firebase.firestore().collection('users').doc(cred.user.uid).get();
           const user = doc.data();
 
-          if (!user) return alert('حساب غير موجود');
-          if (user.role === role) {
-            location.href = role === 'teacher' ? 'teacher.html' : 'student.html';
+          if (!user) return alert('الحساب غير موجود');
+          if (user.type === role) {
+            if (role === 'teacher') {
+              const teacherName = encodeURIComponent(user.name);
+              location.href = `teacher.html?name=${teacherName}`;
+            } else {
+              location.href = 'student.html';
+            }
           } else {
             alert('دور المستخدم لا يتطابق مع نوع الحساب.');
           }
@@ -101,6 +107,7 @@
         }
       };
 
+      // زر إنشاء الحساب
       document.getElementById('btn-register-action').onclick = async () => {
         const name = document.getElementById('reg-name').value.trim();
         const email = document.getElementById('reg-email').value;
@@ -111,7 +118,8 @@
         try {
           const cred = await firebase.auth().createUserWithEmailAndPassword(email, pass);
           await firebase.firestore().collection('users').doc(cred.user.uid).set({
-            name, email, phone, role, gender
+            name, email, phone, role, gender,
+            type: role  // teacher أو student مباشرة
           });
           alert('تم إنشاء الحساب بنجاح');
           toggleTab(true);
@@ -119,6 +127,16 @@
           alert('خطأ: ' + e.message);
         }
       };
+
+      // زر دخول الطالب مباشرة
+      const studentButton = document.createElement('button');
+      studentButton.textContent = 'دخول الطالب مباشرة';
+      studentButton.className = 'form-button';
+      studentButton.style.marginTop = '10px';
+      studentButton.onclick = () => {
+        window.location.href = 'student.html';
+      };
+      document.getElementById('login-tab').appendChild(studentButton);
     };
   </script>
 </body>
