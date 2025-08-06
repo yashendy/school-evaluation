@@ -1,55 +1,176 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>نظام تقييم الطلاب</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <link rel="stylesheet" href="style.css" />
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js"></script>
-   <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      background: #f4f6fa;
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      direction: rtl;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .container {
+      background: white;
+      padding: 40px;
+      border-radius: 10px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    .logo {
+      width: 100px;
+      margin-bottom: 15px;
+    }
+    h2 {
+      color: #007bff;
+      margin-bottom: 5px;
+    }
+    .tab-buttons {
+      display: flex;
+      margin-bottom: 20px;
+    }
+    .tab-buttons button {
+      flex: 1;
+      padding: 10px;
+      cursor: pointer;
+      border: 1px solid #007bff;
+      background: white;
+      color: #007bff;
+      font-weight: bold;
+    }
+    .tab-buttons button.active {
+      background: #007bff;
+      color: white;
+    }
+    input, .gender-row, .type-row {
+      width: 100%;
+      margin: 8px 0;
+      padding: 10px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+    }
+    .form-button {
+      width: 100%;
+      padding: 12px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      margin-top: 15px;
+      cursor: pointer;
+    }
+    .alt-button {
+      background: #6c757d !important;
+    }
+    .row-options {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 10px 0;
+    }
+    .row-options .option-box {
+      flex: 1;
+      text-align: center;
+    }
+    .row-options .divider {
+      width: 1px;
+      height: 50px;
+      background: #ccc;
+    }
+    label {
+      display: block;
+      margin: 5px 0;
+    }
+    footer {
+      margin-top: 20px;
+      font-size: 13px;
+      color: #666;
+    }
+  </style>
 </head>
 <body>
   <div class="container">
-    <div class="form-box">
-      <img src="logo.png" alt="Logo" class="logo"/>
-      <h2>معهد الدراسات الإدارية والفنية</h2>
-      <p>نظام تقييم الطلاب</p>
-      <div class="tab-buttons">
-        <button id="login-tab" class="active" onclick="showTab('login')">تسجيل الدخول</button>
-        <button id="register-tab" onclick="showTab('register')">إنشاء حساب</button>
-      </div>
-      <form id="login-form" class="form active">
-        <input type="email" id="login-email" placeholder="البريد الإلكتروني" required />
-        <input type="password" id="login-password" placeholder="كلمة المرور" required />
-        <div class="radio-group">
-          <label><input type="radio" name="login-role" value="teacher" required /> معلم</label>
-          <label><input type="radio" name="login-role" value="student" /> طالب</label>
-        </div>
-        <button type="submit">تسجيل الدخول</button>
-        <p class="error-message" id="login-error"></p>
-      </form>
-      <form id="register-form" class="form">
-        <input type="text" id="register-name" placeholder="الاسم الكامل" required />
-        <input type="email" id="register-email" placeholder="البريد الإلكتروني" required />
-        <input type="password" id="register-password" placeholder="كلمة المرور" required />
-        <input type="text" id="register-phone" placeholder="رقم الهاتف" required />
-        <div class="radio-group">
-          <label><input type="radio" name="register-role" value="teacher" required /> معلم</label>
-          <label><input type="radio" name="register-role" value="student" /> طالب</label>
-        </div>
-        <div class="radio-group">
-          <label><input type="radio" name="register-gender" value="male" required /> ذكر</label>
-          <label><input type="radio" name="register-gender" value="female" /> أنثى</label>
-        </div>
-        <button type="submit">إنشاء الحساب</button>
-        <p class="error-message" id="register-error"></p>
-      </form>
-      <p class="footer-text">التعليم ليس فقط درجات، بل بناء أجيال.</p>
+    <img src="logo.png" class="logo" alt="logo">
+    <h2>معهد الدراسات الإدارية والفنية</h2>
+    <p>نظام تقييم الطلاب</p>
+
+    <div class="tab-buttons">
+      <button class="tab-btn active" onclick="toggleTab(true)">تسجيل الدخول</button>
+      <button class="tab-btn" onclick="toggleTab(false)">إنشاء حساب</button>
     </div>
+
+    <!-- تسجيل الدخول -->
+    <div id="login-tab">
+      <input type="email" placeholder="البريد الإلكتروني">
+      <input type="password" placeholder="كلمة المرور">
+
+      <div class="row-options">
+        <div class="option-box">
+          <label><input type="radio" name="login-type" checked> معلم</label>
+        </div>
+        <div class="divider"></div>
+        <div class="option-box">
+          <label><input type="radio" name="login-type"> طالب</label>
+        </div>
+      </div>
+
+      <button class="form-button">تسجيل الدخول</button>
+      <button class="form-button alt-button" onclick="location.href='student-evaluation.html'">عرض التقييم</button>
+    </div>
+
+    <!-- إنشاء حساب -->
+    <div id="register-tab" style="display: none;">
+      <input type="text" placeholder="الاسم الكامل">
+      <input type="email" placeholder="البريد الإلكتروني">
+      <input type="password" placeholder="كلمة المرور">
+      <input type="text" placeholder="رقم الهاتف">
+
+      <div class="row-options">
+        <div class="option-box">
+          <label><input type="radio" name="user-type" checked> معلم</label>
+        </div>
+        <div class="divider"></div>
+        <div class="option-box">
+          <label><input type="radio" name="user-type"> طالب</label>
+        </div>
+      </div>
+
+      <div class="row-options">
+        <div class="option-box">
+          <label><input type="radio" name="gender" checked> ذكر</label>
+        </div>
+        <div class="divider"></div>
+        <div class="option-box">
+          <label><input type="radio" name="gender"> أنثى</label>
+        </div>
+      </div>
+
+      <button class="form-button">إنشاء الحساب</button>
+      <button class="form-button alt-button" onclick="location.href='student-evaluation.html'">عرض التقييم</button>
+    </div>
+
+    <footer>التعليم ليس فقط درجات، بل بناء أجيال.</footer>
   </div>
-  <script src="script.js" defer></script>
+
+  <script>
+    function toggleTab(isLogin) {
+      document.getElementById("login-tab").style.display = isLogin ? "block" : "none";
+      document.getElementById("register-tab").style.display = isLogin ? "none" : "block";
+
+      const btns = document.querySelectorAll('.tab-btn');
+      btns[0].classList.toggle('active', isLogin);
+      btns[1].classList.toggle('active', !isLogin);
+    }
+  </script>
 </body>
 </html>
