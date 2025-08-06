@@ -90,7 +90,7 @@
           const user = doc.data();
           if (!user) return alert('حساب غير موجود');
           if (user.type === role) {
-            location.href = user.type === 'معلم' ? 'teacher.html' : 'student.html';
+            location.href = user.type === 'teacher' ? 'teacher.html' : 'student.html';
           } else alert('الدور لا يتطابق');
         } catch(e) {
           alert('خطأ: ' + e.message);
@@ -119,5 +119,6 @@
   </script>
 </body>
 </html>
+
 
 
