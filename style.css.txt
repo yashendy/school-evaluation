@@ -1,0 +1,162 @@
+/* style.css */
+
+/* التنسيق العام */
+body {
+  margin: 0;
+  font-family: 'Segoe UI', sans-serif;
+  background: #f4f6fa;
+  direction: rtl;
+}
+
+/* صفحة index (form) */
+.container {
+  width: 100%;
+  max-width: 400px;
+  margin: 80px auto;
+  background: #fff;
+  padding: 20px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  border-radius: 8px;
+  text-align: center;
+}
+.logo {
+  max-width: 120px;
+  margin-bottom: 15px;
+}
+.form-box h2 {
+  margin: 0 0 5px;
+  font-size: 24px;
+  color: #0288d1;
+}
+.form-box p {
+  margin: 0 0 15px;
+  color: #555;
+}
+.tab-buttons {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 15px;
+}
+.tab-buttons button {
+  flex: 1;
+  padding: 10px 0;
+  font-size: 16px;
+  border: 1px solid #ccc;
+  background: #f9f9f9;
+  cursor: pointer;
+}
+.tab-buttons button.active {
+  background: #0288d1;
+  color: #fff;
+  border-color: #0288d1;
+}
+.form {
+  display: none;
+}
+.form.active {
+  display: block;
+}
+.form input, .form select {
+  width: 100%;
+  padding: 10px;
+  margin: 10px 0;
+  font-size: 16px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+.form button {
+  width: 100%;
+  padding: 12px;
+  background: #0288d1;
+  color: #fff;
+  font-size: 18px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.error-message {
+  color: red;
+  margin: 5px 0 0;
+  font-size: 14px;
+}
+.footer-text {
+  margin-top: 20px;
+  font-size: 14px;
+  color: #777;
+}
+
+/* صفحة dashboard المعلم */
+.main-container {
+  display: flex;
+  min-height: 100vh;
+}
+.sidebar {
+  width: 260px;
+  background: #0288d1;
+  color: #fff;
+  padding: 30px 20px;
+  text-align: center;
+}
+.sidebar img {
+  width: 100px;
+  margin-bottom: 10px;
+}
+#teacher-name {
+  font-size: 22px;
+  margin-bottom: 30px;
+}
+.sidebar button {
+  width: 100%;
+  padding: 12px;
+  margin: 8px 0;
+  background: #fff;
+  color: #0288d1;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+}
+.sidebar button:hover {
+  background: #cbefff;
+}
+.content {
+  flex: 1;
+  padding: 40px;
+  font-size: 18px;
+  color: #333;
+}
+.select-boxes select, input {
+  width: calc(33% - 10px);
+  margin: 5px;
+  padding: 8px;
+  font-size: 16px;
+}
+button.save-btn {
+  background: #0288d1;
+  color: #fff;
+  border: none;
+  padding: 8px 16px;
+  font-size: 16px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+button.delete-btn {
+  background: transparent;
+  color: red;
+  font-weight: bold;
+  cursor: pointer;
+  border: none;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+th, td {
+  border: 1px solid #ccc;
+  padding: 10px;
+  text-align: center;
+}
+th {
+  background: #eee;
+}
