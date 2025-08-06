@@ -48,17 +48,31 @@ let currentTeacherId = null;
 
 auth.onAuthStateChanged(async user => {
   if (!user) return location.href = 'index.html';
+  
   currentTeacherId = user.uid;
-  const doc = await db.collection('users').doc(user.uid).get();
-  document.getElementById('teacher-name').textContent = `أ. ${doc.data().name}`;
+  const doc = await db.collection('users').doc(currentTeacherId).get();
+  const data = doc.data();
+
+  // تأكيد أن هذا الحساب لمعلم
+  if (!data || data.type !== 'teacher') {
+    alert('ليس لديك صلاحية الدخول إلى هذه الصفحة');
+    return auth.signOut().then(() => location.href = 'index.html');
+  }
+
+  // عرض الاسم
+  document.getElementById('teacher-name').textContent = `أ. ${data.name}`;
+
+  // تفعيل التنقل بين الأقسام
   document.querySelectorAll('.sidebar button[data-sec]').forEach(b =>
     b.addEventListener('click', () => showSection(b.dataset.sec))
   );
+
   showSection('classes');
 });
 
 function showSection(sec) {
   const main = document.getElementById('main-content');
+
   if (sec === 'classes') {
     main.innerHTML = `
       <h2>➕ إدارة الفصول</h2>
@@ -69,6 +83,7 @@ function showSection(sec) {
         <button class="save-btn" onclick="addClass()">إضافة فصل</button>
       </div>`;
   }
+
   else if (sec === 'students') {
     main.innerHTML = `
       <h2>➕ إضافة طالب جديد</h2>
@@ -83,6 +98,7 @@ function showSection(sec) {
       <table id="students-table"><thead><tr><th>الاسم</th><th>النوع</th><th>الديانة</th><th>رقم الجلوس</th></tr></thead><tbody></tbody></table>`;
     loadClassDropdowns();
   }
+
   else if (sec === 'evaluation') {
     main.innerHTML = `
       <h2>التقييمات</h2>
@@ -149,9 +165,9 @@ async function displayStudents(classId) {
   const tbody = document.querySelector('#students-table tbody');
   tbody.innerHTML = '';
   const snap = await db.collection('students').where('classId','==',classId).orderBy('seatNumber').get();
-  snap.forEach(d => {
-    const e = d.data();
-    tbody.innerHTML += `<tr><td>${e.name}</td><td>${e.gender==='male'?'ذكر':'أنثى'}</td><td>${e.religion==='muslim'?'مسلم':'مسيحي'}</td><td>${e.seatNumber}</td></tr>`;
+  snap.forEach(e => {
+    const data = e.data();
+    tbody.innerHTML += `<tr><td>${data.name}</td><td>${data.gender==='male'?'ذكر':'أنثى'}</td><td>${data.religion==='muslim'?'مسلم':'مسيحي'}</td><td>${data.seatNumber}</td></tr>`;
   });
 }
 
@@ -207,7 +223,7 @@ async function loadEvalResults() {
 }
 
 function printEval() {
-  // يمكنك استخدام نفس منطق printClassSheet هنا
+  window.print();
 }
 </script>
 </body>
