@@ -14,14 +14,14 @@ document.getElementById('btn-login-action').onclick = async () => {
   const password = document.getElementById('login-password').value;
 
   try {
-    const cred = await firebase.auth().signInWithEmailAndPassword(email, password);
-    const doc = await firebase.firestore().collection('users').doc(cred.user.uid).get();
+    const cred = await auth.signInWithEmailAndPassword(email, password);
+    const doc = await db.collection('users').doc(cred.user.uid).get();
 
     if (!doc.exists) return alert('الحساب غير موجود في قاعدة البيانات.');
 
     const userData = doc.data();
 
-    if (userData.type === 'معلم') {
+    if (userData.type === 'teacher') {
       const teacherName = encodeURIComponent(userData.name);
       window.location.href = `teacher.html?name=${teacherName}`;
     } else {
@@ -33,7 +33,6 @@ document.getElementById('btn-login-action').onclick = async () => {
   }
 };
 
-
 // إنشاء حساب
 document.getElementById('register-form').addEventListener('submit', async e => {
   e.preventDefault();
@@ -43,10 +42,17 @@ document.getElementById('register-form').addEventListener('submit', async e => {
   const phone = document.getElementById('register-phone').value;
   const role = document.querySelector('input[name="register-role"]:checked').value;
   const gender = document.querySelector('input[name="register-gender"]:checked').value;
+
   try {
     const cred = await auth.createUserWithEmailAndPassword(email, password);
     await db.collection('users').doc(cred.user.uid).set({
-      name, phone, role, gender, createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      name,
+      email,
+      phone,
+      gender,
+      role,
+      type: role, // teacher أو student مباشرة
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     alert('تم إنشاء الحساب بنجاح');
     location.reload();
@@ -54,4 +60,3 @@ document.getElementById('register-form').addEventListener('submit', async e => {
     document.getElementById('register-error').textContent = err.message;
   }
 });
-
