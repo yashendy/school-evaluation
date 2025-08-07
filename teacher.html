@@ -66,102 +66,97 @@
   });
 
   // المرحلة 2: دالة showSection 
+// المرحلة 2: showSection دالة
 function showSection(sec) {
   const main = document.getElementById('main-content');
   main.innerHTML = '';
 
-  // --- المرحلة 2.1: إدارة الفصول ---
+  // 👇 إدارة الفصول
   if (sec === 'classes') {
     main.innerHTML = `
       <div id="classes-section"><h2>📘 إدارة الفصول</h2>
-        <div>
-          <select id="c-grade">
-            <option>الصف الأول</option>
-            <option>الصف الثاني</option>
-            <option>الصف الثالث</option>
-            <option>الصف الرابع</option>
-            <option>الصف الخامس</option>
-            <option>الصف السادس</option>
-          </select>
-          <select id="c-system"><option>عربي</option><option>لغات</option></select>
-          <select id="c-section"><option>A</option><option>B</option><option>C</option><option>D</option></select>
-          <button class="save-btn" onclick="addClass()">إضافة فصل</button>
-        </div>
-        <h3>📚 فصول المعلم</h3>
-        <table id="classes-table"><thead>
-          <tr><th>الصف</th><th>النظام</th><th>القسم</th><th>إجراء</th></tr>
-        </thead><tbody></tbody></table>
-      </div>`;
+      <div>
+        <select id="c-grade">
+          <option>الصف الأول</option><option>الصف الثاني</option><option>الصف الثالث</option>
+          <option>الصف الرابع</option><option>الصف الخامس</option><option>الصف السادس</option>
+        </select>
+        <select id="c-system"><option>عربي</option><option>لغات</option></select>
+        <select id="c-section"><option>A</option><option>B</option><option>C</option><option>D</option></select>
+        <button class="save-btn" onclick="addClass()">إضافة فصل</button>
+      </div>
+      <h3>📚 فصول المعلم</h3>
+      <table id="classes-table"><thead><tr>
+        <th>الصف</th><th>النظام</th><th>القسم</th><th>إجراء</th>
+      </tr></thead><tbody></tbody></table></div>`;
     loadTeacherClasses();
   }
 
-  // --- المرحلة 2.2: إدارة الطلاب مع زر عرض وفلاتر ---
+  // 👇 إدارة الطلاب
   else if (sec === 'students') {
     main.innerHTML = `
       <div id="students-section"><h2>👨‍🎓 إضافة طالب جديد</h2>
-        <div>
-          <select id="s-grade">
-            <option>الصف الأول</option><option>الصف الثاني</option><option>الصف الثالث</option>
-            <option>الصف الرابع</option><option>الصف الخامس</option><option>الصف السادس</option>
-          </select>
-          <select id="s-system"><option>عربي</option><option>لغات</option></select>
-          <select id="s-section"><option>A</option><option>B</option><option>C</option><option>D</option></select>
-          <input type="text" id="s-name" placeholder="اسم الطالب"/>
-          <select id="s-gender"><option value="male">ذكر</option><option value="female">أنثى</option></select>
-          <select id="s-religion"><option value="muslim">مسلم</option><option value="christian">مسيحي</option></select>
-          <button class="save-btn" onclick="addStudent()">إضافة الطالب</button>
-          <button class="save-btn" onclick="loadStudentList()">عرض طلاب الفصل</button>
-          <input type="search" id="student-search" placeholder="ابحث باسم الطالب..." list="students-list"/>
-          <datalist id="students-list"></datalist>
-        </div>
-        <h3>📋 طلاب الفصل</h3>
-        <table id="students-table"><thead>
-          <tr><th>الاسم</th><th>النوع</th><th>الديانة</th><th>رقم الجلوس</th></tr>
-        </thead><tbody></tbody></table>
-      </div>`;
+      <div>
+        <select id="s-grade">
+          <option>الصف الأول</option><option>الصف الثاني</option><option>الصف الثالث</option>
+          <option>الصف الرابع</option><option>الصف الخامس</option><option>الصف السادس</option>
+        </select>
+        <select id="s-system"><option>عربي</option><option>لغات</option></select>
+        <select id="s-section"><option>A</option><option>B</option><option>C</option><option>D</option></select>
+        <input type="text" id="s-name" placeholder="اسم الطالب"/>
+        <select id="s-gender"><option value="male">ذكر</option><option value="female">أنثى</option></select>
+        <select id="s-religion"><option value="muslim">مسلم</option><option value="christian">مسيحي</option></select>
+        <button class="save-btn" onclick="addStudent()">إضافة الطالب</button>
+        <button class="save-btn" onclick="loadStudentList()">عرض طلاب الفصل</button>
+        <input type="search" id="student-search" placeholder="ابحث باسم الطالب..." list="students-list"/>
+        <datalist id="students-list"></datalist>
+      </div>
+      <h3>📋 طلاب الفصل</h3>
+      <table id="students-table"><thead><tr>
+        <th>الاسم</th><th>النوع</th><th>الديانة</th><th>رقم الجلوس</th>
+      </tr></thead><tbody></tbody></table></div>`;
     loadClassDropdowns();
   }
 
-  // --- المرحلة 2.3: إدخال الاختبارات مع تحميل الطلاب حسب الفصل ---
+  // 👇 إدخال الاختبارات
   else if (sec === 'tests') {
     main.innerHTML = `
       <div id="tests-section"><h2>🧪 إدخال الاختبارات</h2>
-        <div>
-          <label>السنة:</label><span id="year">${new Date().getFullYear()}</span>
-          <label>الشهر:</label><select id="eval-month">
-            ${["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"]
-              .map(m => `<option>${m}</option>`).join('')}
-          </select>
-          <label>الفصل:</label><select id="eval-class"></select>
-          <label>الطالب:</label><select id="eval-student"></select>
-          <p>اسم الطالب: <span id="stu-name"></span></p>
-          <label>اختبار (10):</label><input type="number" id="input-test" min="0" max="10"/>
-          <label>واجب (10):</label><input type="number" id="input-home" min="0" max="10"/>
-          <label>مشاركة (10):</label><input type="number" id="input-part" min="0" max="10"/>
-          <label>سلوك (10):</label><input type="number" id="input-beh" value="10" min="0" max="10"/>
-          <button class="save-btn" onclick="submitEvaluation()">حفظ التقييم</button>
-        </div>
-        <div id="eval-container"></div>
-      </div>`;
-    loadEvalClasses();
-  }
-
-  // --- المرحلة 2.4: عرض التقييمات واستدعاء الدالة المناسبة ---
-  else if (sec === 'evaluation') {
-    main.innerHTML = `
-      <div id="evaluation-section"><h2>📝 التقييمات</h2>
-        <select id="eval-class-view"></select>
-        <select id="eval-month-view">
+      <div>
+        <label>السنة:</label><span id="year">${new Date().getFullYear()}</span>
+        <label>الشهر:</label>
+        <select id="eval-month">
           ${["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"]
             .map(m => `<option>${m}</option>`).join('')}
         </select>
-        <button class="save-btn" onclick="loadEvalResultsView()">عرض النتائج</button>
-        <div id="eval-results-container"></div>
-        <button id="print-btn" class="save-btn" style="display:none;" onclick="printEval()">طباعة الشهادة</button>
-      </div>`;
-    loadEvalClassesView();
+        <label>الفصل:</label><select id="eval-class"></select>
+        <label>الطالب:</label><select id="eval-student"></select>
+        <p>اسم الطالب: <span id="stu-name"></span></p>
+        <label>اختبار (10):</label><input type="number" id="input-test" min="0" max="10"/>
+        <label>واجب (10):</label><input type="number" id="input-home" min="0" max="10"/>
+        <label>مشاركة (10):</label><input type="number" id="input-part" min="0" max="10"/>
+        <label>سلوك (10):</label><input type="number" id="input-beh" value="10" min="0" max="10"/>
+        <button class="save-btn" onclick="submitEvaluation()">حفظ التقييم</button>
+      </div>
+      <div id="eval-container"></div></div>`;
+    loadEvalClasses(); // ✅ التصحيح هنا
+  }
+
+  // 👇 عرض التقييمات
+  else if (sec === 'evaluation') {
+    main.innerHTML = `
+      <div id="evaluation-section"><h2>📝 التقييمات</h2>
+      <select id="eval-class-view"></select>
+      <select id="eval-month-view">
+        ${["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"]
+          .map(m => `<option>${m}</option>`).join('')}
+      </select>
+      <button class="save-btn" onclick="loadEvalResults()">عرض النتائج</button>
+      <div id="eval-results-container"></div>
+      <button id="print-btn" class="save-btn" style="display:none;" onclick="printEval()">طباعة الشهادة</button></div>`;
+    loadEvalClasses(); // ✅ التصحيح هنا
   }
 }
+
 // المرحلة 3: إدارة الفصول
 
 // إضافة فصل جديد
@@ -551,4 +546,5 @@ function printEval() {
   </script>
 </body>
 </html>
+
 
