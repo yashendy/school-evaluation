@@ -65,9 +65,7 @@
     showSection('classes');
   });
 
-  // المرحلة 2: دالة showSection 
-// المرحلة 2: showSection دالة
-function showSection(sec) {
+  function showSection(sec) {
   const main = document.getElementById('main-content');
   main.innerHTML = '';
 
@@ -138,7 +136,7 @@ function showSection(sec) {
         <button class="save-btn" onclick="submitEvaluation()">حفظ التقييم</button>
       </div>
       <div id="eval-container"></div></div>`;
-    loadEvalClasses(); // ✅ التصحيح هنا
+    loadEvalClasses(); // ✅ التصحيح: تم استدعاء الدالة الصحيحة
   }
 
   // 👇 عرض التقييمات
@@ -153,7 +151,7 @@ function showSection(sec) {
       <button class="save-btn" onclick="loadEvalResults()">عرض النتائج</button>
       <div id="eval-results-container"></div>
       <button id="print-btn" class="save-btn" style="display:none;" onclick="printEval()">طباعة الشهادة</button></div>`;
-    loadEvalClasses(); // ✅ التصحيح هنا
+    loadEvalClasses(); // ✅ التصحيح: تم استخدام دالة صحيحة لتحميل الفصول
   }
 }
 
@@ -487,14 +485,16 @@ function printPDF() {
 }
 // المرحلة 6: عرض التقييمات
 
+// المرحلة 6: عرض التقييمات
+
 async function loadEvalResults() {
   const cid = document.getElementById('eval-class-view').value;
   const month = document.getElementById('eval-month-view').value;
 
   const snap = await db.collection('evaluations')
-    .where('teacher','==',currentTeacherId)
-    .where('classId','==',cid)
-    .where('month','==',month)
+    .where('teacher', '==', currentTeacherId)
+    .where('classId', '==', cid)
+    .where('month', '==', month)
     .orderBy('seatNumber')
     .get();
 
@@ -515,7 +515,7 @@ async function loadEvalResults() {
 
   snap.docs.forEach(d => {
     const e = d.data();
-    let absentAll = ['test','home','part','beh'].every(f => e[f] === 0);
+    const absentAll = ['test', 'home', 'part', 'beh'].every(f => e[f] === 0);
     const display = {
       test: e.test === 0 ? '-' : e.test,
       home: e.home === 0 ? '-' : e.home,
@@ -540,11 +540,14 @@ async function loadEvalResults() {
   container.innerHTML = html;
 }
 
+// زر الطباعة
 function printEval() {
   window.print();
 }
+
   </script>
 </body>
 </html>
+
 
 
