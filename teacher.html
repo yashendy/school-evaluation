@@ -22,11 +22,11 @@
     th,td { border:1px solid #ccc; padding:10px; text-align:center; }
     th { background:#eee; }
     .save-btn { background:#0288d1; color:#fff; border:none; padding:8px 16px; font-size:16px; border-radius:5px; cursor:pointer; }
+    .delete-btn { background:#e53935; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; }
     .grade-absent { background:#f0f0f0; }
     .grade-top { background:#d4edda; }
     .grade-good { background:#cce5ff; }
     .grade-encourage { background:#ffe5b4; }
-    .delete-btn { background:#e53935; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; }
   </style>
 </head>
 <body>
@@ -49,7 +49,6 @@ let currentTeacherId = null;
 
 auth.onAuthStateChanged(async user => {
   if (!user) return location.href = 'index.html';
-  
   currentTeacherId = user.uid;
   const doc = await db.collection('users').doc(currentTeacherId).get();
   const data = doc.data();
@@ -57,7 +56,6 @@ auth.onAuthStateChanged(async user => {
     alert('ليس لديك صلاحية الدخول إلى هذه الصفحة');
     return auth.signOut().then(() => location.href = 'index.html');
   }
-
   document.getElementById('teacher-name').textContent = `أ. ${data.name}`;
   document.querySelectorAll('.sidebar button[data-sec]').forEach(b =>
     b.addEventListener('click', () => showSection(b.dataset.sec))
@@ -79,26 +77,27 @@ function showSection(sec) {
       </div>
       <h3>📘 فصول المعلم</h3>
       <table id="classes-table">
-        <thead><tr><th>الصف</th><th>النظام</th><th>القسم</th><th>إجراء</th></tr></thead>
-        <tbody></tbody>
+        <thead><tr><th>الصف</th><th>النظام</th><th>القسم</th><th>إجراء</th></tr></thead><tbody></tbody>
       </table>`;
     loadTeacherClasses();
-  }
-  else if (sec === 'students') {
+  } else if (sec === 'students') {
     main.innerHTML = `
       <h2>➕ إضافة طالب جديد</h2>
       <div>
-        <select id="s-grade"></select><select id="s-system"></select><select id="s-section"></select>
+        <select id="s-grade"></select>
+        <select id="s-system"></select>
+        <select id="s-section"></select>
         <input type="text" id="s-name" placeholder="اسم الطالب"/>
         <select id="s-gender"><option value="male">ذكر</option><option value="female">أنثى</option></select>
         <select id="s-religion"><option value="muslim">مسلم</option><option value="christian">مسيحي</option></select>
         <button class="save-btn" onclick="addStudent()">إضافة الطالب</button>
       </div>
       <h3>📋 جدول الطلاب لهذا الفصل</h3>
-      <table id="students-table"><thead><tr><th>الاسم</th><th>النوع</th><th>الديانة</th><th>رقم الجلوس</th></tr></thead><tbody></tbody></table>`;
+      <table id="students-table">
+        <thead><tr><th>الاسم</th><th>النوع</th><th>الديانة</th><th>رقم الجلوس</th></tr></thead><tbody></tbody>
+      </table>`;
     loadClassDropdowns();
-  }
-  else if (sec === 'evaluation') {
+  } else if (sec === 'evaluation') {
     main.innerHTML = `
       <h2>التقييمات</h2>
       <select id="eval-class"><option>اختر الفصل</option></select>
@@ -114,16 +113,13 @@ async function addClass() {
   const grade = document.getElementById('c-grade').value;
   const system = document.getElementById('c-system').value;
   const section = document.getElementById('c-section').value;
-
   const existing = await db.collection('classes')
     .where('teacher','==',currentTeacherId)
     .where('grade','==',grade)
     .where('system','==',system)
     .where('section','==',section)
     .get();
-
   if (!existing.empty) return alert('⚠️ هذا الفصل مضاف مسبقاً');
-
   await db.collection('classes').add({ grade, system, section, teacher: currentTeacherId });
   alert('✔️ تم إضافة الفصل');
   loadTeacherClasses();
@@ -151,24 +147,38 @@ async function deleteClass(classId) {
   loadTeacherClasses();
 }
 
-// وظائف الطلاب دون تعديل
 async function loadClassDropdowns() {
   const snap = await db.collection('classes').where('teacher','==',currentTeacherId).get();
-  ['s-grade','s-system','s-section'].forEach(id => document.getElementById(id).innerHTML = '');
+  const gSel = document.getElementById('s-grade');
+  const sSel = document.getElementById('s-system');
+  const cSel = document.getElementById('s-section');
+  gSel.innerHTML = ''; sSel.innerHTML = ''; cSel.innerHTML = '';
   snap.forEach(d => {
     const dd = d.data();
-    document.getElementById('s-grade').innerHTML += `<option>${dd.grade}</option>`;
-    document.getElementById('s-system').innerHTML += `<option>${dd.system}</option>`;
-    document.getElementById('s-section').innerHTML += `<option>${dd.section}</option>`;
+    gSel.innerHTML += `<option>${dd.grade}</option>`;
+    sSel.innerHTML += `<option>${dd.system}</option>`;
+    cSel.innerHTML += `<option>${dd.section}</option>`;
   });
+  [gSel, sSel, cSel].forEach(el => el.addEventListener('change', async () => {
+    if (!gSel.value || !sSel.value || !cSel.value) return;
+    const snapC = await db.collection('classes')
+      .where('teacher','==',currentTeacherId)
+      .where('grade','==',gSel.value)
+      .where('system','==',sSel.value)
+      .where('section','==',cSel.value)
+      .get();
+    if (!snapC.empty) displayStudents(snapC.docs[0].id);
+  }));
 }
+
 async function generateSeat(gender, religion, classId) {
   const snap = await db.collection('students').where('classId','==',classId).get();
   const count = snap.size + 1;
-  const codeG = gender==='male'? '1':'2';
-  const codeR = religion==='muslim'? '1':'2';
-  return codeG + codeR + String(count).padStart(4,'0');
+  const codeG = gender === 'male' ? '1' : '2';
+  const codeR = religion === 'muslim' ? '1' : '2';
+  return codeG + codeR + String(count).padStart(4, '0');
 }
+
 async function addStudent() {
   const g = document.getElementById('s-grade').value;
   const s = document.getElementById('s-system').value;
@@ -176,9 +186,15 @@ async function addStudent() {
   const name = document.getElementById('s-name').value.trim();
   const gender = document.getElementById('s-gender').value;
   const religion = document.getElementById('s-religion').value;
+  if (!g || !s || !c || !name || !gender || !religion) {
+    return alert('⚠️ يجب ملء جميع الخانات الخاصة بالطالب');
+  }
   const snap = await db.collection('classes')
-    .where('grade','==',g).where('system','==',s)
-    .where('section','==',c).where('teacher','==',currentTeacherId).get();
+    .where('teacher','==',currentTeacherId)
+    .where('grade','==',g)
+    .where('system','==',s)
+    .where('section','==',c)
+    .get();
   if (snap.empty) return alert('⚠️ الفصل غير موجود');
   const classId = snap.docs[0].id;
   const seat = await generateSeat(gender, religion, classId);
@@ -186,20 +202,23 @@ async function addStudent() {
   alert(`✔️ تم إضافة الطالب ${name} رقم الجلوس: ${seat}`);
   displayStudents(classId);
 }
+
 async function displayStudents(classId) {
   const tbody = document.querySelector('#students-table tbody');
+  if (!tbody) return;
   tbody.innerHTML = '';
   const snap = await db.collection('students').where('classId','==',classId).orderBy('seatNumber').get();
   snap.forEach(e => {
-    const data = e.data();
+    const d = e.data();
     tbody.innerHTML += `<tr>
-      <td>${data.name}</td>
-      <td>${data.gender==='male'?'ذكر':'أنثى'}</td>
-      <td>${data.religion==='muslim'?'مسلم':'مسيحي'}</td>
-      <td>${data.seatNumber}</td>
+      <td>${d.name}</td>
+      <td>${d.gender === 'male' ? 'ذكر' : 'أنثى'}</td>
+      <td>${d.religion === 'muslim' ? 'مسلم' : 'مسيحي'}</td>
+      <td>${d.seatNumber}</td>
     </tr>`;
   });
 }
+
 async function loadEvalClasses() {
   const sel = document.getElementById('eval-class');
   sel.innerHTML = '';
@@ -212,6 +231,7 @@ async function loadEvalClasses() {
     sel.appendChild(o);
   });
 }
+
 async function loadEvalResults() {
   const cid = document.getElementById('eval-class').value;
   const month = document.getElementById('eval-month').value;
@@ -231,21 +251,24 @@ async function loadEvalResults() {
   let html = `<table><thead><tr><th>الجلوس</th><th>الاسم</th><th>اختبار</th><th>واجب</th><th>مشاركة</th><th>سلوك</th><th>المجموع</th><th>تقدير</th></tr></thead><tbody>`;
   snap.docs.forEach(d => {
     const e = d.data();
-    let absentAll = ['test','home','part','beh'].every(f => e[f]===0);
+    const absentAll = ['test','home','part','beh'].every(f => e[f] === 0);
     const display = {};
-    ['test','home','part','beh'].forEach(f => display[f] = e[f]===0?'-':e[f]);
-    display.total = e.total===0?'-':e.total;
-    let gradeText='', cls='';
-    if (absentAll) {gradeText='غياب'; cls='grade-absent';}
-    else if (e.total===40) {gradeText='ممتاز مع الشكر'; cls='grade-top';}
-    else if (e.total>=36) {gradeText='ممتاز'; cls='grade-good';}
-    else {gradeText='نرجو من ولي الأمر متابعة الطالب وتشجيعه'; cls='grade-encourage';}
+    ['test','home','part','beh'].forEach(f => display[f] = e[f] === 0 ? '-' : e[f]);
+    display.total = e.total === 0 ? '-' : e.total;
+    let gradeText = '', cls = '';
+    if (absentAll) { gradeText = 'غياب'; cls = 'grade-absent'; }
+    else if (e.total === 40) { gradeText = 'ممتاز مع الشكر'; cls = 'grade-top'; }
+    else if (e.total >= 36) { gradeText = 'ممتاز'; cls = 'grade-good'; }
+    else { gradeText = 'نرجو من ولي الأمر متابعة الطالب وتشجيعه'; cls = 'grade-encourage'; }
     html += `<tr class="${cls}"><td>${e.seatNumber}</td><td>${e.name}</td><td>${display.test}</td><td>${display.home}</td><td>${display.part}</td><td>${display.beh}</td><td>${display.total}</td><td>${gradeText}</td></tr>`;
   });
   html += '</tbody></table>';
   container.innerHTML = html;
 }
-function printEval() { window.print(); }
+
+function printEval() {
+  window.print();
+}
 </script>
 </body>
 </html>
