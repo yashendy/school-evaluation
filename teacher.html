@@ -27,7 +27,6 @@
     </aside>
     <main class="content"><div id="main-content"></div></main>
   </div>
-
 <script>
 const auth = firebase.auth();
 const db = firebase.firestore();
@@ -149,6 +148,7 @@ async function addClass() {
   await db.collection('classes').add({ grade, system, section, teacher: currentTeacherId });
   loadTeacherClasses();
 }
+
 async function loadTeacherClasses() {
   const tbody = document.querySelector('#classes-table tbody');
   tbody.innerHTML = '';
@@ -164,6 +164,7 @@ async function deleteClass(id) {
   loadTeacherClasses();
 }
 </script>
+
 <!-- دوال الطلاب -->
 <script>
 async function addStudent() {
@@ -196,11 +197,13 @@ async function generateSeat(gender, religion, classId) {
   const codeR = religion === 'muslim' ? '1' : '2';
   return codeG + codeR + String(count).padStart(4, '0');
 }
+
 async function loadClassDropdowns() {
   // هذه الدالة ستقوم بتحميل الطلاب للفصل الافتراضي
   const classSnap = await db.collection('classes').where('teacher','==',currentTeacherId).limit(1).get();
   if (!classSnap.empty) displayStudents(classSnap.docs[0].id);
 }
+
 async function displayStudents(classId) {
   const tbody = document.querySelector('#students-table tbody');
   tbody.innerHTML = '';
@@ -288,5 +291,4 @@ function printPDF() {
 </script>
 </body>
 </html>
-
 
