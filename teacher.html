@@ -349,161 +349,41 @@ async function loadStudentList() {
     list.appendChild(opt);
   });
 }
-// المرحلة 5: إدخال الاختبارات
+// المرحلة 5: إدخال الاختبارات (تعديل كامل)
 
-// تحميل الفصول في صفحة إدخال الاختبارات
-async function loadEvalClasses() {
-  const sel = document.getElementById('eval-class');
-  sel.innerHTML = '';
-  const snap = await db.collection('classes').where('teacher','==',currentTeacherId).get();
-  snap.forEach(d => {
-    const dd = d.data();
-    const opt = document.createElement('option');
-    opt.value = d.id;
-    opt.textContent = `${dd.grade} - ${dd.system} - ${dd.section}`;
-    sel.appendChild(opt);
-  });
+else if (sec === 'tests') {
+  main.innerHTML = `
+    <div id="tests-section"><h2>🧪 إدخال الاختبارات</h2>
+    <div>
+      <label>السنة:</label><span id="year">${new Date().getFullYear()}</span>
+      <label>الشهر:</label>
+      <select id="eval-month">
+        ${["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"]
+          .map(m => `<option>${m}</option>`).join('')}
+      </select>
+      <label>الفصل:</label><select id="eval-class"></select>
+      <label>الطالب:</label><select id="eval-student"></select>
+      <p>اسم الطالب: <span id="stu-name"></span></p>
+      <label>اختبار (10):</label><input type="number" id="input-test" min="0" max="10"/>
+      <label>واجب (10):</label><input type="number" id="input-home" min="0" max="10"/>
+      <label>مشاركة (10):</label><input type="number" id="input-part" min="0" max="10"/>
+      <label>سلوك (10):</label><input type="number" id="input-beh" value="10" min="0" max="10"/>
+      <button class="save-btn" onclick="submitEvaluation()">حفظ التقييم</button>
+    </div>
+    <div id="eval-container"></div>
 
-  if (sel.options.length > 0) {
-    populateStudentSelect(); // تحميل أول فصل تلقائيًا
-  }
-
-  sel.addEventListener('change', populateStudentSelect);
+    <table id="eval-summary-table" style="width:100%; margin-top:20px; display:none;">
+      <thead>
+        <tr><th>الاسم</th><th>اختبار</th><th>واجب</th><th>مشاركة</th><th>سلوك</th><th>المجموع</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    </div>`;
+  loadEvalClasses();
 }
 
-// تحميل الطلاب عند اختيار الفصل
-async function populateStudentSelect() {
-  const classId = document.getElementById('eval-class').value;
-  const sel = document.getElementById('eval-student');
-  sel.innerHTML = '';
-
-  const snap = await db.collection('students')
-    .where('classId','==',classId)
-    .orderBy('seatNumber')
-    .get();
-
-  snap.forEach(doc => {
-    const d = doc.data();
-    const opt = document.createElement('option');
-    opt.value = doc.id;
-    opt.textContent = d.name;
-    sel.appendChild(opt);
-  });
-
-  sel.addEventListener('change', () => {
-    const selected = sel.options[sel.selectedIndex];
-    document.getElementById('stu-name').textContent = selected ? selected.text : '';
-  });
-
-  // عرض الاسم الأول تلقائيًا إن وُجد طلاب
-  if (sel.options.length > 0) {
-    sel.selectedIndex = 0;
-    document.getElementById('stu-name').textContent = sel.options[0].textContent;
-  } else {
-    document.getElementById('stu-name').textContent = '';
-  }
-}
-
-// حفظ التقييم في قاعدة البيانات
-async function submitEvaluation() {
-  const classId = document.getElementById('eval-class').value;
-  const studentId = document.getElementById('eval-student').value;
-  const month = document.getElementById('eval-month').value;
-
-  const test = +document.getElementById('input-test').value;
-  const home = +document.getElementById('input-home').value;
-  const part = +document.getElementById('input-part').value;
-  const beh = +document.getElementById('input-beh').value;
-  const total = test + home + part + beh;
-
-  const studentDoc = await db.collection('students').doc(studentId).get();
-  const student = studentDoc.data();
-
-  await db.collection('evaluations').add({
-    classId,
-    studentId,
-    month,
-    teacher: currentTeacherId,
-    name: student.name,
-    seatNumber: student.seatNumber,
-    test, home, part, beh, total
-  });
-
-  alert('✔️ تم حفظ التقييم بنجاح');
-  loadEvalPreview();
-}
-
-// عرض نتيجة التقييم بعد الإدخال
-async function loadEvalPreview() {
-  const test = +document.getElementById('input-test').value;
-  const home = +document.getElementById('input-home').value;
-  const part = +document.getElementById('input-part').value;
-  const beh = +document.getElementById('input-beh').value;
-  const total = test + home + part + beh;
-
-  let gradeText;
-  if (test === 0) gradeText = 'غياب';
-  else if (test < 7) gradeText = 'تشجيع من ولي الأمر';
-  else if (total === 40) gradeText = 'ممتاز مع الشكر';
-  else if (total >= 36) gradeText = 'ممتاز';
-  else gradeText = 'نرجو من ولي الأمر متابعة الطالب وتشجيعه';
-
-  const name = document.getElementById('stu-name').textContent;
-
-  document.getElementById('eval-container').innerHTML = `
-    <table><thead><tr>
-      <th>الاسم</th><th>اختبار</th><th>واجب</th><th>مشاركة</th><th>سلوك</th><th>المجموع</th><th>تقدير</th><th>طباعة</th>
-    </tr></thead><tbody>
-      <tr>
-        <td>${name}</td>
-        <td>${test === 0 ? '-' : test}</td>
-        <td>${test === 0 ? '-' : home}</td>
-        <td>${test === 0 ? '-' : part}</td>
-        <td>${test === 0 ? '-' : beh}</td>
-        <td>${test === 0 ? '-' : total}</td>
-        <td>${gradeText}</td>
-        <td>${gradeText === 'ممتاز مع الشكر' ? '<button onclick="printPDF()">شهادة</button>' : ''}</td>
-      </tr>
-    </tbody></table>`;
-}
-
-// طباعة شهادة PDF
-function printPDF() {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  const name = document.getElementById('stu-name').textContent;
-  const total = document.querySelector('#eval-container td:nth-child(6)').textContent;
-
-  doc.setFontSize(18);
-  doc.text('شهادة تقدير', 80, 20);
-  doc.setFontSize(14);
-  doc.text(`الطالب: ${name}`, 20, 40);
-  doc.text(`المجموع: ${total} / 40`, 20, 50);
-  doc.text('ممتاز مع الشكر', 20, 60);
-
-  doc.save('certificate.pdf');
-}
-// المرحلة 6: عرض التقييمات
-
-// تحميل الفصول في صفحة عرض التقييمات
-async function loadEvalClassesView() {
-  const sel = document.getElementById('eval-class-view');
-  if (!sel) return;
-  sel.innerHTML = '';
-
-  const snap = await db.collection('classes')
-    .where('teacher','==',currentTeacherId)
-    .get();
-
-  snap.forEach(d => {
-    const dd = d.data();
-    const opt = document.createElement('option');
-    opt.value = d.id;
-    opt.textContent = `${dd.grade} - ${dd.system} - ${dd.section}`;
-    sel.appendChild(opt);
-  });
-}
   </script>
 </body>
 </html>
+
 
