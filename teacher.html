@@ -10,42 +10,8 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/3.0.1/jspdf.umd.min.js"></script>
   <script src="firebase-config.js"></script>
-  <!-- التنسيق -->
   <style>
-    body { margin:0; font-family:'Segoe UI', sans-serif; background:#f4f6fa; direction:rtl; }
-    .main-container { display:flex; min-height:100vh; }
-    .sidebar { width:260px; background:#0288d1; color:#fff; padding:30px 20px; text-align:center; }
-    .sidebar img { width:100px; margin-bottom:10px; }
-    #teacher-name { font-size:22px; margin-bottom:30px; }
-    .sidebar button {
-      width:100%; padding:12px; margin:8px 0;
-      background:#fff; color:#0288d1;
-      border:none; border-radius:6px;
-      cursor:pointer;
-    }
-    .sidebar button:hover { background:#cbefff; }
-    .content { flex:1; padding:40px; font-size:18px; color:#333; }
-    select, input, button {
-      width:100%; padding:8px; margin:6px 0;
-      font-size:16px; border:1px solid #ccc; border-radius:4px;
-    }
-    table { width:100%; border-collapse:collapse; margin-top:20px; background:#fff; }
-    th, td { border:1px solid #ccc; padding:10px; text-align:center; }
-    th { background:#eee; }
-    .save-btn {
-      background:#0288d1; color:#fff;
-      border:none; padding:8px 16px;
-      font-size:16px; border-radius:5px; cursor:pointer;
-    }
-    .delete-btn {
-      background:#e53935; color:#fff;
-      border:none; padding:4px 8px;
-      border-radius:4px; cursor:pointer;
-    }
-    .grade-absent { background:#f0f0f0; }
-    .grade-top { background:#d4edda; }
-    .grade-good { background:#cce5ff; }
-    .grade-encourage { background:#ffe5b4; }
+    /* هنا التنسيق CSS كما سبق */
   </style>
 </head>
 <body>
@@ -61,48 +27,102 @@
     </aside>
     <main class="content"><div id="main-content"></div></main>
   </div>
-<script>
-  const auth = firebase.auth();
-  const db = firebase.firestore();
-  let currentTeacherId = null;
 
-  auth.onAuthStateChanged(async user => {
-    if (!user) return location.href = 'index.html';
-    currentTeacherId = user.uid;
+  <!-- جميع السكربتات تأتي هنا -->
+  <script>
+    // المرحلة 1: تسجيل الدخول والتحقق
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+    let currentTeacherId = null;
 
-    const doc = await db.collection('users').doc(currentTeacherId).get();
-    const data = doc.data();
-
-    if (!data || data.type !== 'teacher') {
-      alert('❗ ليس لديك صلاحية الدخول إلى هذه الصفحة');
-      return auth.signOut().then(() => location.href = 'index.html');
-    }
-
-    // عرض اسم المعلم
-    document.getElementById('teacher-name').textContent = `أ. ${data.name}`;
-
-    // تفعيل الأزرار الجانبية
-    document.querySelectorAll('.sidebar button[data-sec]').forEach(btn => {
-      btn.addEventListener('click', () => showSection(btn.dataset.sec));
+    auth.onAuthStateChanged(async user => {
+      if (!user) return location.href = 'index.html';
+      currentTeacherId = user.uid;
+      const doc = await db.collection('users').doc(currentTeacherId).get();
+      const data = doc.data();
+      if (!data || data.type !== 'teacher') {
+        alert('❗ ليس لديك صلاحية الدخول إلى هذه الصفحة');
+        return auth.signOut().then(() => location.href = 'index.html');
+      }
+      document.getElementById('teacher-name').textContent = `أ. ${data.name}`;
+      document.querySelectorAll('.sidebar button[data-sec]').forEach(btn => {
+        btn.addEventListener('click', () => showSection(btn.dataset.sec));
+      });
+      showSection('classes');
     });
 
-    // عرض القسم الأول افتراضيًا
-    showSection('classes');
-  });
-</script>
-// المرحلة 3: إدارة الفصول
+    // المرحلة 2: دالة التنقل بين الأقسام
+    function showSection(sec) {
+      const main = document.getElementById('main-content');
+      main.innerHTML = '';
 
-// إضافة فصل جديد
+      if (sec === 'classes') {
+        main.innerHTML = `
+          <div id="classes-section"><h2>📘 إدارة الفصول</h2>
+            <div>... form إضافة فصل ...</div>
+            <h3>📚 فصول المعلم</h3>
+            <table id="classes-table">...</table>
+          </div>`;
+        loadTeacherClasses();
+      }
+      else if (sec === 'students') {
+        main.innerHTML = `
+          <div id="students-section"><h2>👨‍🎓 إضافة طالب جديد</h2>
+            <div>... form إضافة طالب ...</div>
+            <h3>📋 طلاب الفصل</h3>
+            <table id="students-table">...</table>
+          </div>`;
+        loadClassDropdowns();
+      }
+      else if (sec === 'tests') {
+        main.innerHTML = `
+          <div id="tests-section"><h2>🧪 إدخال الاختبارات</h2>
+            <div>... form إدخال التقييم ...</div>
+            <table id="eval-summary-table" style="display:none;">...</table>
+          </div>`;
+        loadEvalClasses();
+      }
+    }
+
+    // المرحلة 3: إدارة الفصول
+
+// ✅ عرض واجهة إدارة الفصول
+function showSection(sec) {
+  const main = document.getElementById('main-content');
+  main.innerHTML = '';
+
+  if (sec === 'classes') {
+    main.innerHTML = `
+      <div id="classes-section"><h2>📘 إدارة الفصول</h2>
+        <div>
+          <select id="c-grade">
+            <option>الصف الأول</option><option>الصف الثاني</option><option>الصف الثالث</option>
+            <option>الصف الرابع</option><option>الصف الخامس</option><option>الصف السادس</option>
+          </select>
+          <select id="c-system"><option>عربي</option><option>لغات</option></select>
+          <select id="c-section"><option>A</option><option>B</option><option>C</option><option>D</option></select>
+          <button class="save-btn" onclick="addClass()">إضافة فصل</button>
+        </div>
+        <h3>📚 فصول المعلم</h3>
+        <table id="classes-table"><thead><tr>
+          <th>الصف</th><th>النظام</th><th>القسم</th><th>إجراء</th>
+        </tr></thead><tbody></tbody></table>
+      </div>`;
+    loadTeacherClasses();
+  }
+}
+
+// ✅ إضافة فصل جديد
 async function addClass() {
   const grade = document.getElementById('c-grade').value;
   const system = document.getElementById('c-system').value;
   const section = document.getElementById('c-section').value;
 
   const existing = await db.collection('classes')
-    .where('teacher','==',currentTeacherId)
-    .where('grade','==',grade)
-    .where('system','==',system)
-    .where('section','==',section)
+    .where('teacher', '==', currentTeacherId)
+    .where('grade', '==', grade)
+    .where('system', '==', system)
+    .where('section', '==', section)
     .get();
 
   if (!existing.empty) {
@@ -110,18 +130,27 @@ async function addClass() {
     return;
   }
 
-  await db.collection('classes').add({ grade, system, section, teacher: currentTeacherId });
+  await db.collection('classes').add({
+    grade,
+    system,
+    section,
+    teacher: currentTeacherId
+  });
+
   alert('✔️ تم إضافة الفصل');
   loadTeacherClasses();
 }
 
-// تحميل فصول المعلم لعرضها في الجدول
+// ✅ تحميل فصول المعلم وعرضها في الجدول
 async function loadTeacherClasses() {
   const tbody = document.querySelector('#classes-table tbody');
   if (!tbody) return;
   tbody.innerHTML = '';
 
-  const snap = await db.collection('classes').where('teacher','==',currentTeacherId).get();
+  const snap = await db.collection('classes')
+    .where('teacher', '==', currentTeacherId)
+    .get();
+
   snap.forEach(doc => {
     const d = doc.data();
     tbody.innerHTML += `
@@ -134,7 +163,7 @@ async function loadTeacherClasses() {
   });
 }
 
-// حذف فصل
+// ✅ حذف فصل
 async function deleteClass(classId) {
   await db.collection('classes').doc(classId).delete();
   alert('🗑️ تم حذف الفصل');
@@ -142,7 +171,33 @@ async function deleteClass(classId) {
 }
 // المرحلة 4: إدارة الطلاب
 
-// إضافة طالب جديد
+// ✅ واجهة إدارة الطلاب
+if (sec === 'students') {
+  main.innerHTML = `
+    <div id="students-section"><h2>👨‍🎓 إضافة طالب جديد</h2>
+    <div>
+      <select id="s-grade">
+        <option>الصف الأول</option><option>الصف الثاني</option><option>الصف الثالث</option>
+        <option>الصف الرابع</option><option>الصف الخامس</option><option>الصف السادس</option>
+      </select>
+      <select id="s-system"><option>عربي</option><option>لغات</option></select>
+      <select id="s-section"><option>A</option><option>B</option><option>C</option><option>D</option></select>
+      <input type="text" id="s-name" placeholder="اسم الطالب" />
+      <select id="s-gender"><option value="male">ذكر</option><option value="female">أنثى</option></select>
+      <select id="s-religion"><option value="muslim">مسلم</option><option value="christian">مسيحي</option></select>
+      <button class="save-btn" onclick="addStudent()">إضافة الطالب</button>
+      <button class="save-btn" onclick="loadStudentList()">عرض طلاب الفصل</button>
+      <input type="search" id="student-search" placeholder="ابحث باسم الطالب..." list="students-list" />
+      <datalist id="students-list"></datalist>
+    </div>
+    <h3>📋 طلاب الفصل</h3>
+    <table id="students-table"><thead><tr>
+      <th>الاسم</th><th>النوع</th><th>الديانة</th><th>رقم الجلوس</th>
+    </tr></thead><tbody></tbody></table></div>`;
+  loadClassDropdowns();
+}
+
+// ✅ إضافة طالب جديد
 async function addStudent() {
   const g = document.getElementById('s-grade').value;
   const s = document.getElementById('s-system').value;
@@ -190,7 +245,7 @@ async function addStudent() {
   displayStudents(classId);
 }
 
-// توليد رقم الجلوس
+// ✅ توليد رقم الجلوس
 async function generateSeat(gender, religion, classId) {
   const snap = await db.collection('students').where('classId','==',classId).get();
   const count = snap.size + 1;
@@ -199,9 +254,8 @@ async function generateSeat(gender, religion, classId) {
   return codeG + codeR + String(count).padStart(4, '0');
 }
 
-// تحميل القوائم المنسدلة للصف والنظام والقسم (ثابتة)
+// ✅ تحميل القوائم المنسدلة الثابتة
 async function loadClassDropdowns() {
-  // الصفوف الثابتة
   const grades = document.getElementById('s-grade');
   grades.innerHTML = `
     <option>الصف الأول</option>
@@ -209,8 +263,7 @@ async function loadClassDropdowns() {
     <option>الصف الثالث</option>
     <option>الصف الرابع</option>
     <option>الصف الخامس</option>
-    <option>الصف السادس</option>
-  `;
+    <option>الصف السادس</option>`;
 
   const systems = document.getElementById('s-system');
   systems.innerHTML = `<option>عربي</option><option>لغات</option>`;
@@ -225,7 +278,7 @@ async function loadClassDropdowns() {
   }
 }
 
-// عرض الطلاب التابعين للفصل
+// ✅ عرض طلاب الفصل المحدد
 async function displayStudents(classId) {
   const tbody = document.querySelector('#students-table tbody');
   if (!tbody) return;
@@ -248,7 +301,7 @@ async function displayStudents(classId) {
   });
 }
 
-// زر عرض طلاب الفصل
+// ✅ زر "عرض طلاب الفصل"
 async function loadStudentList() {
   const g = document.getElementById('s-grade').value;
   const s = document.getElementById('s-system').value;
@@ -269,6 +322,7 @@ async function loadStudentList() {
   const classId = snap.docs[0].id;
   displayStudents(classId);
 
+  // تعبئة datalist للبحث
   const list = document.getElementById('students-list');
   list.innerHTML = '';
   const studentsSnap = await db.collection('students').where('classId', '==', classId).get();
@@ -280,7 +334,7 @@ async function loadStudentList() {
     list.appendChild(opt);
   });
 }
-// المرحلة 5: إدخال الاختبارات (تعديل كامل)
+// 🌟 المرحلة 5: إدخال التقييمات
 
 else if (sec === 'tests') {
   main.innerHTML = `
@@ -449,6 +503,6 @@ async function showEvaluationSummary() {
 
 
 
-
+  </script> 
 </body>
 </html>
