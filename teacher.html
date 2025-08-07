@@ -1,29 +1,47 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8"/>
+  <meta charset="UTF-8" />
   <title>لوحة تحكم المعلم</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/3.0.1/jspdf.umd.min.js"></script>
   <script src="firebase-config.js"></script>
+  <!-- التنسيق -->
   <style>
-    body { margin:0; font-family:'Segoe UI',sans-serif; background:#f4f6fa; direction:rtl; }
+    body { margin:0; font-family:'Segoe UI', sans-serif; background:#f4f6fa; direction:rtl; }
     .main-container { display:flex; min-height:100vh; }
     .sidebar { width:260px; background:#0288d1; color:#fff; padding:30px 20px; text-align:center; }
     .sidebar img { width:100px; margin-bottom:10px; }
     #teacher-name { font-size:22px; margin-bottom:30px; }
-    .sidebar button { width:100%; padding:12px; margin:8px 0; background:#fff; color:#0288d1; border:none; border-radius:6px; cursor:pointer; }
+    .sidebar button {
+      width:100%; padding:12px; margin:8px 0;
+      background:#fff; color:#0288d1;
+      border:none; border-radius:6px;
+      cursor:pointer;
+    }
     .sidebar button:hover { background:#cbefff; }
     .content { flex:1; padding:40px; font-size:18px; color:#333; }
-    select,input,button { width:100%; padding:8px; margin:6px 0; font-size:16px; border:1px solid #ccc; border-radius:4px; }
+    select, input, button {
+      width:100%; padding:8px; margin:6px 0;
+      font-size:16px; border:1px solid #ccc; border-radius:4px;
+    }
     table { width:100%; border-collapse:collapse; margin-top:20px; background:#fff; }
-    th,td { border:1px solid #ccc; padding:10px; text-align:center; }
+    th, td { border:1px solid #ccc; padding:10px; text-align:center; }
     th { background:#eee; }
-    .save-btn { background:#0288d1; color:#fff; border:none; padding:8px 16px; font-size:16px; border-radius:5px; cursor:pointer; }
-    .delete-btn { background:#e53935; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; }
+    .save-btn {
+      background:#0288d1; color:#fff;
+      border:none; padding:8px 16px;
+      font-size:16px; border-radius:5px; cursor:pointer;
+    }
+    .delete-btn {
+      background:#e53935; color:#fff;
+      border:none; padding:4px 8px;
+      border-radius:4px; cursor:pointer;
+    }
     .grade-absent { background:#f0f0f0; }
     .grade-top { background:#d4edda; }
     .grade-good { background:#cce5ff; }
@@ -33,7 +51,7 @@
 <body>
   <div class="main-container">
     <aside class="sidebar">
-      <img src="logo.png" alt="Logo">
+      <img src="logo.png" alt="Logo" />
       <h3 id="teacher-name">تحميل...</h3>
       <button data-sec="classes">📘 الفصول</button>
       <button data-sec="students">👨‍🎓 الطلاب</button>
@@ -43,8 +61,7 @@
     </aside>
     <main class="content"><div id="main-content"></div></main>
   </div>
-
-  <script>
+<script>
   const auth = firebase.auth();
   const db = firebase.firestore();
   let currentTeacherId = null;
@@ -52,109 +69,27 @@
   auth.onAuthStateChanged(async user => {
     if (!user) return location.href = 'index.html';
     currentTeacherId = user.uid;
+
     const doc = await db.collection('users').doc(currentTeacherId).get();
     const data = doc.data();
+
     if (!data || data.type !== 'teacher') {
-      alert('ليس لديك صلاحية الدخول');
-      return auth.signOut().then(() => location.href='index.html');
+      alert('❗ ليس لديك صلاحية الدخول إلى هذه الصفحة');
+      return auth.signOut().then(() => location.href = 'index.html');
     }
+
+    // عرض اسم المعلم
     document.getElementById('teacher-name').textContent = `أ. ${data.name}`;
+
+    // تفعيل الأزرار الجانبية
     document.querySelectorAll('.sidebar button[data-sec]').forEach(btn => {
       btn.addEventListener('click', () => showSection(btn.dataset.sec));
     });
+
+    // عرض القسم الأول افتراضيًا
     showSection('classes');
   });
-
-  function showSection(sec) {
-  const main = document.getElementById('main-content');
-  main.innerHTML = '';
-
-  // 👇 إدارة الفصول
-  if (sec === 'classes') {
-    main.innerHTML = `
-      <div id="classes-section"><h2>📘 إدارة الفصول</h2>
-      <div>
-        <select id="c-grade">
-          <option>الصف الأول</option><option>الصف الثاني</option><option>الصف الثالث</option>
-          <option>الصف الرابع</option><option>الصف الخامس</option><option>الصف السادس</option>
-        </select>
-        <select id="c-system"><option>عربي</option><option>لغات</option></select>
-        <select id="c-section"><option>A</option><option>B</option><option>C</option><option>D</option></select>
-        <button class="save-btn" onclick="addClass()">إضافة فصل</button>
-      </div>
-      <h3>📚 فصول المعلم</h3>
-      <table id="classes-table"><thead><tr>
-        <th>الصف</th><th>النظام</th><th>القسم</th><th>إجراء</th>
-      </tr></thead><tbody></tbody></table></div>`;
-    loadTeacherClasses();
-  }
-
-  // 👇 إدارة الطلاب
-  else if (sec === 'students') {
-    main.innerHTML = `
-      <div id="students-section"><h2>👨‍🎓 إضافة طالب جديد</h2>
-      <div>
-        <select id="s-grade">
-          <option>الصف الأول</option><option>الصف الثاني</option><option>الصف الثالث</option>
-          <option>الصف الرابع</option><option>الصف الخامس</option><option>الصف السادس</option>
-        </select>
-        <select id="s-system"><option>عربي</option><option>لغات</option></select>
-        <select id="s-section"><option>A</option><option>B</option><option>C</option><option>D</option></select>
-        <input type="text" id="s-name" placeholder="اسم الطالب"/>
-        <select id="s-gender"><option value="male">ذكر</option><option value="female">أنثى</option></select>
-        <select id="s-religion"><option value="muslim">مسلم</option><option value="christian">مسيحي</option></select>
-        <button class="save-btn" onclick="addStudent()">إضافة الطالب</button>
-        <button class="save-btn" onclick="loadStudentList()">عرض طلاب الفصل</button>
-        <input type="search" id="student-search" placeholder="ابحث باسم الطالب..." list="students-list"/>
-        <datalist id="students-list"></datalist>
-      </div>
-      <h3>📋 طلاب الفصل</h3>
-      <table id="students-table"><thead><tr>
-        <th>الاسم</th><th>النوع</th><th>الديانة</th><th>رقم الجلوس</th>
-      </tr></thead><tbody></tbody></table></div>`;
-    loadClassDropdowns();
-  }
-
-  // 👇 إدخال الاختبارات
-  else if (sec === 'tests') {
-    main.innerHTML = `
-      <div id="tests-section"><h2>🧪 إدخال الاختبارات</h2>
-      <div>
-        <label>السنة:</label><span id="year">${new Date().getFullYear()}</span>
-        <label>الشهر:</label>
-        <select id="eval-month">
-          ${["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"]
-            .map(m => `<option>${m}</option>`).join('')}
-        </select>
-        <label>الفصل:</label><select id="eval-class"></select>
-        <label>الطالب:</label><select id="eval-student"></select>
-        <p>اسم الطالب: <span id="stu-name"></span></p>
-        <label>اختبار (10):</label><input type="number" id="input-test" min="0" max="10"/>
-        <label>واجب (10):</label><input type="number" id="input-home" min="0" max="10"/>
-        <label>مشاركة (10):</label><input type="number" id="input-part" min="0" max="10"/>
-        <label>سلوك (10):</label><input type="number" id="input-beh" value="10" min="0" max="10"/>
-        <button class="save-btn" onclick="submitEvaluation()">حفظ التقييم</button>
-      </div>
-      <div id="eval-container"></div></div>`;
-    loadEvalClasses(); // ✅ التصحيح: تم استدعاء الدالة الصحيحة
-  }
-
-  // 👇 عرض التقييمات
-  else if (sec === 'evaluation') {
-    main.innerHTML = `
-      <div id="evaluation-section"><h2>📝 التقييمات</h2>
-      <select id="eval-class-view"></select>
-      <select id="eval-month-view">
-        ${["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"]
-          .map(m => `<option>${m}</option>`).join('')}
-      </select>
-      <button class="save-btn" onclick="loadEvalResults()">عرض النتائج</button>
-      <div id="eval-results-container"></div>
-      <button id="print-btn" class="save-btn" style="display:none;" onclick="printEval()">طباعة الشهادة</button></div>`;
-    loadEvalClasses(); // ✅ التصحيح: تم استخدام دالة صحيحة لتحميل الفصول
-  }
-}
-
+</script>
 // المرحلة 3: إدارة الفصول
 
 // إضافة فصل جديد
@@ -194,7 +129,7 @@ async function loadTeacherClasses() {
         <td>${d.grade}</td>
         <td>${d.system}</td>
         <td>${d.section}</td>
-        <td><button class="delete-btn" onclick="deleteClass('${doc.id}')">حذف</button></td>
+        <td><button class="delete-btn" onclick="deleteClass('${doc.id}')">🗑️ حذف</button></td>
       </tr>`;
   });
 }
@@ -238,7 +173,7 @@ async function addStudent() {
     .get();
 
   if (classSnap.empty) {
-    return alert('⚠️ عفوا... أنت لم تدرس لهذا الفصل، يرجى مراجعة الإدارة إذا كنت بتأكيد تتدرس له');
+    return alert('⚠️ عفوا... أنت لم تدرس لهذا الفصل');
   }
 
   const classId = classSnap.docs[0].id;
@@ -277,15 +212,12 @@ async function loadClassDropdowns() {
     <option>الصف السادس</option>
   `;
 
-  // الأنظمة الثابتة
   const systems = document.getElementById('s-system');
   systems.innerHTML = `<option>عربي</option><option>لغات</option>`;
 
-  // الأقسام الثابتة A B C D
   const sections = document.getElementById('s-section');
   sections.innerHTML = `<option>A</option><option>B</option><option>C</option><option>D</option>`;
 
-  // تحميل أول فصل إن وجد
   const snap = await db.collection('classes').where('teacher','==',currentTeacherId).limit(1).get();
   if (!snap.empty) {
     const classId = snap.docs[0].id;
@@ -337,7 +269,6 @@ async function loadStudentList() {
   const classId = snap.docs[0].id;
   displayStudents(classId);
 
-  // تعبئة datalist للبحث
   const list = document.getElementById('students-list');
   list.innerHTML = '';
   const studentsSnap = await db.collection('students').where('classId', '==', classId).get();
@@ -361,8 +292,8 @@ else if (sec === 'tests') {
         ${["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"]
           .map(m => `<option>${m}</option>`).join('')}
       </select>
-      <label>الفصل:</label><select id="eval-class"></select>
-      <label>الطالب:</label><select id="eval-student"></select>
+      <label>الفصل:</label><select id="eval-class" onchange="loadEvalStudents()"></select>
+      <label>الطالب:</label><select id="eval-student" onchange="updateStudentName()"></select>
       <p>اسم الطالب: <span id="stu-name"></span></p>
       <label>اختبار (10):</label><input type="number" id="input-test" min="0" max="10"/>
       <label>واجب (10):</label><input type="number" id="input-home" min="0" max="10"/>
@@ -370,7 +301,6 @@ else if (sec === 'tests') {
       <label>سلوك (10):</label><input type="number" id="input-beh" value="10" min="0" max="10"/>
       <button class="save-btn" onclick="submitEvaluation()">حفظ التقييم</button>
     </div>
-    <div id="eval-container"></div>
 
     <table id="eval-summary-table" style="width:100%; margin-top:20px; display:none;">
       <thead>
@@ -382,8 +312,143 @@ else if (sec === 'tests') {
   loadEvalClasses();
 }
 
-  </script>
+// تحميل فصول المعلم لقائمة إدخال التقييم
+async function loadEvalClasses() {
+  const sel = document.getElementById('eval-class');
+  sel.innerHTML = '';
+
+  const snap = await db.collection('classes')
+    .where('teacher', '==', currentTeacherId)
+    .get();
+
+  snap.forEach(doc => {
+    const d = doc.data();
+    const opt = document.createElement('option');
+    opt.value = doc.id;
+    opt.textContent = `${d.grade} - ${d.system} - ${d.section}`;
+    sel.appendChild(opt);
+  });
+
+  if (snap.docs.length > 0) {
+    loadEvalStudents();
+  }
+}
+
+// تحميل طلاب الفصل المختار
+async function loadEvalStudents() {
+  const classId = document.getElementById('eval-class').value;
+  const sel = document.getElementById('eval-student');
+  sel.innerHTML = '';
+
+  const snap = await db.collection('students')
+    .where('classId', '==', classId)
+    .orderBy('seatNumber')
+    .get();
+
+  snap.forEach(doc => {
+    const d = doc.data();
+    const opt = document.createElement('option');
+    opt.value = doc.id;
+    opt.textContent = d.name;
+    sel.appendChild(opt);
+  });
+
+  updateStudentName();
+}
+
+// عرض اسم الطالب المحدد
+async function updateStudentName() {
+  const studentId = document.getElementById('eval-student').value;
+  const span = document.getElementById('stu-name');
+  if (!studentId) return span.textContent = '';
+  const doc = await db.collection('students').doc(studentId).get();
+  if (doc.exists) span.textContent = doc.data().name;
+}
+
+// حفظ التقييم للطالب
+async function submitEvaluation() {
+  const classId = document.getElementById('eval-class').value;
+  const studentId = document.getElementById('eval-student').value;
+  const month = document.getElementById('eval-month').value;
+  const year = new Date().getFullYear();
+
+  const test = parseInt(document.getElementById('input-test').value) || 0;
+  const home = parseInt(document.getElementById('input-home').value) || 0;
+  const part = parseInt(document.getElementById('input-part').value) || 0;
+  const beh = parseInt(document.getElementById('input-beh').value) || 0;
+  const total = test + home + part + beh;
+
+  if (!studentId || !classId || !month) return alert('⚠️ تأكد من اختيار الفصل والطالب والشهر');
+
+  // التحقق من التكرار
+  const check = await db.collection('evaluations')
+    .where('classId', '==', classId)
+    .where('studentId', '==', studentId)
+    .where('month', '==', month)
+    .get();
+
+  if (!check.empty) {
+    return alert('⚠️ تم تقييم هذا الطالب لهذا الشهر مسبقاً');
+  }
+
+  const studentDoc = await db.collection('students').doc(studentId).get();
+  const name = studentDoc.exists ? studentDoc.data().name : 'طالب';
+
+  await db.collection('evaluations').add({
+    classId,
+    studentId,
+    teacher: currentTeacherId,
+    name,
+    test,
+    home,
+    part,
+    beh,
+    total,
+    month,
+    year
+  });
+
+  alert('✔️ تم حفظ التقييم بنجاح');
+  showEvaluationSummary();
+}
+
+// عرض ملخص التقييم في الجدول أسفل الصفحة
+async function showEvaluationSummary() {
+  const classId = document.getElementById('eval-class').value;
+  const month = document.getElementById('eval-month').value;
+
+  const table = document.getElementById('eval-summary-table');
+  const tbody = table.querySelector('tbody');
+  tbody.innerHTML = '';
+
+  const snap = await db.collection('evaluations')
+    .where('classId', '==', classId)
+    .where('month', '==', month)
+    .get();
+
+  if (snap.empty) {
+    table.style.display = 'none';
+    return;
+  }
+
+  snap.forEach(doc => {
+    const d = doc.data();
+    const row = `<tr>
+      <td>${d.name}</td>
+      <td>${d.test}</td>
+      <td>${d.home}</td>
+      <td>${d.part}</td>
+      <td>${d.beh}</td>
+      <td>${d.total}</td>
+    </tr>`;
+    tbody.innerHTML += row;
+  });
+
+  table.style.display = '';
+}
+
+
+
+
 </body>
 </html>
-
-
