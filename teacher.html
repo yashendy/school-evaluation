@@ -487,14 +487,36 @@ function printPDF() {
 
 // المرحلة 6: عرض التقييمات
 
+// المرحلة 6: عرض التقييمات
+
+// تحميل الفصول في صفحة عرض التقييمات
+async function loadEvalClassesView() {
+  const sel = document.getElementById('eval-class-view');
+  if (!sel) return;
+  sel.innerHTML = '';
+
+  const snap = await db.collection('classes')
+    .where('teacher','==',currentTeacherId)
+    .get();
+
+  snap.forEach(d => {
+    const dd = d.data();
+    const opt = document.createElement('option');
+    opt.value = d.id;
+    opt.textContent = `${dd.grade} - ${dd.system} - ${dd.section}`;
+    sel.appendChild(opt);
+  });
+}
+
+// عرض نتائج التقييمات
 async function loadEvalResults() {
   const cid = document.getElementById('eval-class-view').value;
   const month = document.getElementById('eval-month-view').value;
 
   const snap = await db.collection('evaluations')
-    .where('teacher', '==', currentTeacherId)
-    .where('classId', '==', cid)
-    .where('month', '==', month)
+    .where('teacher','==',currentTeacherId)
+    .where('classId','==',cid)
+    .where('month','==',month)
     .orderBy('seatNumber')
     .get();
 
@@ -515,7 +537,7 @@ async function loadEvalResults() {
 
   snap.docs.forEach(d => {
     const e = d.data();
-    const absentAll = ['test', 'home', 'part', 'beh'].every(f => e[f] === 0);
+    let absentAll = ['test','home','part','beh'].every(f => e[f] === 0);
     const display = {
       test: e.test === 0 ? '-' : e.test,
       home: e.home === 0 ? '-' : e.home,
@@ -540,14 +562,16 @@ async function loadEvalResults() {
   container.innerHTML = html;
 }
 
-// زر الطباعة
+// زر طباعة التقييمات
 function printEval() {
   window.print();
 }
 
+
   </script>
 </body>
 </html>
+
 
 
 
