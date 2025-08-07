@@ -38,7 +38,7 @@
       <button data-sec="classes">📘 الفصول</button>
       <button data-sec="students">👨‍🎓 الطلاب</button>
       <button data-sec="tests">🧪 إدخال الاختبارات</button>
-      <button data-sec="evaluation">📝 التقييمات</button>
+      <button onclick="window.location.href='evaluations.html'">📄 عرض التقييمات</button>
       <button onclick="auth.signOut().then(()=>location.href='index.html')">🚪 تسجيل الخروج</button>
     </aside>
     <main class="content"><div id="main-content"></div></main>
@@ -569,6 +569,7 @@ function printEval() {
   </script>
 </body>
 </html>
+
 
 
 
