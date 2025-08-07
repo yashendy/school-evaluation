@@ -238,7 +238,7 @@ async function addStudent() {
     .get();
 
   if (classSnap.empty) {
-    return alert('⚠️ الفصل غير موجود');
+    return alert('⚠️ عفوا... أنت لم تدرس لهذا الفصل، يرجى مراجعة الإدارة إذا كنت بتأكيد تتدرس له');
   }
 
   const classId = classSnap.docs[0].id;
@@ -548,6 +548,7 @@ function printEval() {
   </script>
 </body>
 </html>
+
 
 
 
