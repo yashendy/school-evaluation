@@ -136,7 +136,7 @@
           ${["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"]
           .map(m => `<option>${m}</option>`).join('')}
         </select>
-        <button class="save-btn" onclick="loadEvalResultsView()">عرض النتائج</button>
+        <button class="save-btn" onclick="loadEvalPreview()">عرض النتائج</button>
         <div id="eval-results-container"></div>
         <button id="print-btn" class="save-btn" style="display:none;" onclick="printEval()">طباعة الشهادة</button></div>`;
       loadEvalClassesView();
@@ -191,6 +191,23 @@ async function deleteClass(classId) {
   await db.collection('classes').doc(classId).delete();
   alert('🗑️ تم حذف الفصل');
   loadTeacherClasses();
+}
+// تحميل فصول المعلم في قسم التقييمات
+async function loadEvalClassesView() {
+  const sel = document.getElementById('eval-class-view');
+  sel.innerHTML = '';
+
+  const snap = await db.collection('classes')
+    .where('teacher', '==', currentTeacherId)
+    .get();
+
+  snap.forEach(doc => {
+    const data = doc.data();
+    const opt = document.createElement('option');
+    opt.value = doc.id;
+    opt.textContent = `${data.grade} - ${data.system} - ${data.section}`;
+    sel.appendChild(opt);
+  });
 }
 
 
@@ -338,7 +355,7 @@ async function populateStudentSelect() {
 }
 
 // عرض النتيجة بعد إدخال الدرجات
-async function loadEvalResults() {
+async function loadEvalPreview() {
   const test = +document.getElementById('input-test').value;
   const home = +document.getElementById('input-home').value;
   const part = +document.getElementById('input-part').value;
