@@ -1,0 +1,211 @@
+<!-- المرحلة 1: واجهة الصفحة evaluations.html -->
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>📝 صفحة تقييمات الطلاب</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/3.0.1/jspdf.umd.min.js"></script>
+  <script src="firebase-config.js"></script>
+
+  <style>
+    body { margin:0; font-family:'Segoe UI',sans-serif; background:#f4f6fa; direction:rtl; }
+    .container { max-width:1000px; margin:40px auto; padding:20px; background:#fff; box-shadow:0 0 10px #ccc; }
+    h1,h2 { text-align:center; color:#0288d1; }
+    select,button { padding:10px; font-size:16px; margin:10px 0; width:100%; }
+    table { width:100%; border-collapse:collapse; margin-top:20px; }
+    th,td { border:1px solid #ccc; padding:10px; text-align:center; }
+    th { background:#eee; }
+    .grade-absent { background:#f0f0f0; }
+    .grade-top { background:#d4edda; }
+    .grade-good { background:#cce5ff; }
+    .grade-encourage { background:#ffe5b4; }
+    .print-btn { background:#0288d1; color:#fff; padding:10px 20px; border:none; border-radius:5px; cursor:pointer; display:none; }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <img src="logo.png" alt="Logo" style="width:100px; display:block; margin:0 auto;">
+    <h1>معهد الدراسات الإدارية والفنية</h1>
+    <h2>📝 التقييمات الشهرية للطلاب</h2>
+
+    <label>📘 اختر الفصل:</label>
+    <select id="class-select"></select>
+
+    <label>📅 اختر الشهر:</label>
+    <select id="month-select">
+      <option>يناير</option><option>فبراير</option><option>مارس</option><option>أبريل</option>
+      <option>مايو</option><option>يونيو</option><option>يوليو</option><option>أغسطس</option>
+      <option>سبتمبر</option><option>أكتوبر</option><option>نوفمبر</option><option>ديسمبر</option>
+    </select>
+
+    <button onclick="loadEvalResults()">📊 عرض التقييمات</button>
+    <div id="eval-results"></div>
+
+    <button id="print-btn" class="print-btn" onclick="printEvalPDF()">🖨️ طباعة التقييم PDF</button>
+  </div>
+<!-- المرحلة 2: سكربت المصادقة وتحميل الفصول الخاصة بالمعلم -->
+<script>
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+  let currentTeacherId = null;
+
+  auth.onAuthStateChanged(async user => {
+    if (!user) return location.href = 'index.html';
+    currentTeacherId = user.uid;
+    const doc = await db.collection('users').doc(currentTeacherId).get();
+    const data = doc.data();
+    if (!data || data.type !== 'teacher') {
+      alert('❗ ليس لديك صلاحية الوصول لهذه الصفحة');
+      return auth.signOut().then(() => location.href = 'index.html');
+    }
+    loadTeacherClasses();
+  });
+
+  async function loadTeacherClasses() {
+    const sel = document.getElementById('class-select');
+    sel.innerHTML = '';
+
+    const snap = await db.collection('classes')
+      .where('teacher','==',currentTeacherId)
+      .get();
+
+    snap.forEach(doc => {
+      const d = doc.data();
+      const opt = document.createElement('option');
+      opt.value = doc.id;
+      opt.textContent = `${d.grade} - ${d.system} - ${d.section}`;
+      sel.appendChild(opt);
+    });
+  }
+</script>
+<!-- المرحلة 3: عرض التقييمات في جدول -->
+<script>
+  async function showEvaluations() {
+    const classId = document.getElementById('class-select').value;
+    const month = document.getElementById('month-select').value;
+    const year = new Date().getFullYear();
+
+    if (!classId || !month) return alert('⚠️ يرجى اختيار الفصل والشهر');
+
+    const container = document.getElementById('results-container');
+    container.innerHTML = 'جاري التحميل...';
+
+    const snap = await db.collection('evaluations')
+      .where('teacher', '==', currentTeacherId)
+      .where('classId', '==', classId)
+      .where('month', '==', month)
+      .get();
+
+    if (snap.empty) {
+      container.innerHTML = `<p>لا توجد نتائج لشهر ${month}</p>`;
+      return;
+    }
+
+    let html = `
+      <table><thead><tr>
+        <th>اسم الطالب</th><th>اختبار</th><th>واجب</th><th>مشاركة</th>
+        <th>سلوك</th><th>المجموع</th><th>التقدير</th>
+      </tr></thead><tbody>`;
+
+    snap.forEach(doc => {
+      const e = doc.data();
+      let grade = '';
+
+      if (e.test === 0) {
+        grade = 'غياب';
+      } else if (e.test < 7) {
+        grade = 'تشجيع من ولي الأمر';
+      } else if (e.total === 40) {
+        grade = 'ممتاز مع الشكر';
+      } else if (e.total >= 36) {
+        grade = 'ممتاز';
+      } else {
+        grade = 'نرجو من ولي الأمر متابعة الطالب وتشجيعه';
+      }
+
+      html += `
+        <tr>
+          <td>${e.name}</td>
+          <td>${e.test === 0 ? '-' : e.test}</td>
+          <td>${e.test === 0 ? '-' : e.home}</td>
+          <td>${e.test === 0 ? '-' : e.part}</td>
+          <td>${e.test === 0 ? '-' : e.beh}</td>
+          <td>${e.test === 0 ? '-' : e.total}</td>
+          <td>${grade}</td>
+        </tr>`;
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+  }
+</script>
+<!-- المرحلة 4: طباعة التقييمات PDF بصيغة رسمية -->
+<script>
+  async function printEvaluationsPDF() {
+    const classId = document.getElementById('class-select').value;
+    const month = document.getElementById('month-select').value;
+    const year = new Date().getFullYear();
+
+    if (!classId || !month) return alert('⚠️ يرجى اختيار الفصل والشهر');
+
+    const classDoc = await db.collection('classes').doc(classId).get();
+    const classData = classDoc.data();
+    const className = `الصف ${classData.grade} ${classData.system} ${classData.section}`;
+
+    const snap = await db.collection('evaluations')
+      .where('teacher', '==', currentTeacherId)
+      .where('classId', '==', classId)
+      .where('month', '==', month)
+      .get();
+
+    if (snap.empty) {
+      alert('لا توجد نتائج للطباعة');
+      return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    doc.setFontSize(20);
+    doc.text("📘 معهد الدراسات الإدارية والفنية", 50, 20, { align: "center" });
+
+    doc.setFontSize(16);
+    doc.text(`نتيجة اختبارات مادة التربية الإسلامية لشهر ${month} عام ${year}`, 20, 40);
+    doc.text(`لل${className}`, 20, 50);
+
+    let y = 70;
+    doc.setFontSize(12);
+    doc.text("اسم الطالب    اختبار   واجب   مشاركة   سلوك   المجموع   التقدير", 20, y);
+    y += 10;
+
+    snap.forEach(docSnap => {
+      const e = docSnap.data();
+      let grade = '';
+
+      if (e.test === 0) grade = 'غياب';
+      else if (e.test < 7) grade = 'تشجيع من ولي الأمر';
+      else if (e.total === 40) grade = 'ممتاز مع الشكر';
+      else if (e.total >= 36) grade = 'ممتاز';
+      else grade = 'نرجو المتابعة';
+
+      const row = `${e.name.padEnd(15)} ${e.test.toString().padEnd(7)} ${e.home.toString().padEnd(6)} ${e.part.toString().padEnd(8)} ${e.beh.toString().padEnd(6)} ${e.total.toString().padEnd(8)} ${grade}`;
+      doc.text(row, 20, y);
+      y += 10;
+      if (y > 270) {
+        doc.addPage();
+        y = 20;
+      }
+    });
+
+    doc.save(`تقييمات_${className}_${month}_${year}.pdf`);
+  }
+</script>
+  </script>
+</body>
+</html>
