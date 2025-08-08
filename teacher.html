@@ -5,7 +5,7 @@
   <title>لوحة تحكم المعلم</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Firebase & jsPDF -->
+  <!-- روابط Firebase و jsPDF الصحيحة -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
@@ -13,12 +13,13 @@
   <script src="firebase-config.js"></script>
 
   <style>
-    body { margin:0; padding:0; font-family: Arial, sans-serif; background:#f0f2f5; }
+    body { margin:0; padding:0; font-family:Arial, sans-serif; background:#f0f2f5; }
     .main-container { display:flex; min-height:100vh; }
     .sidebar { width:220px; background:#222; color:#fff; padding:20px; box-sizing:border-box; }
     .sidebar img { width:100%; margin-bottom:20px; }
     .sidebar h3 { margin:10px 0; font-size:18px; }
-    .sidebar button { display:block; width:100%; padding:10px; margin-bottom:10px; background:#444; border:none; color:#fff; cursor:pointer; text-align:right; }
+    .sidebar button { display:block; width:100%; padding:10px; margin-bottom:10px;
+                      background:#444; border:none; color:#fff; cursor:pointer; text-align:right; }
     .content { flex:1; background:#fff; padding:20px; box-sizing:border-box; }
     .save-btn, .delete-btn { padding:5px 10px; margin:5px; cursor:pointer; }
   </style>
@@ -51,7 +52,7 @@
         const doc = await db.collection('users').doc(currentTeacherId).get();
         const data = doc.data();
         if (!data || data.type !== 'teacher') {
-          alert('❗ ليس لديك صلاحية');
+          alert('❗ ليس لديك صلاحية الوصول');
           return auth.signOut().then(() => location.href = 'index.html');
         }
         document.getElementById('teacher-name').textContent = `أ. ${data.name}`;
@@ -61,352 +62,352 @@
         showSection('classes');
       });
 
-      async function showSection(sec) {
+      // دالة عرض الأقسام
+      function showSection(sec) {
         const main = document.getElementById('main-content');
-        if (!main) return console.error('main-content غير موجود');
+        if (!main) return console.error('عنصر main-content غير موجود');
         main.innerHTML = '';
 
         if (sec === 'classes') {
           main.innerHTML = `
             <h2>📘 إدارة الفصول</h2>
             <div>
-              <select id="c-grade"><option>الصف الأول</option><option>الصف الثاني</option> ...</select>
+              <select id="c-grade"><option>الصف الأول</option><option>الصف الثاني</option>...</select>
               <select id="c-system"><option>عربي</option><option>لغات</option></select>
-              <select id="c-section"><option>A</option><option>B</option> ...</select>
+              <select id="c-section"><option>A</option><option>B</option>...</select>
               <button class="save-btn" onclick="addClass()">إضافة فصل</button>
             </div>
-            <table id="classes-table"><thead><tr><th>الصف</th><th>النظام</th><th>القسم</th><th>اختيارات</th></tr></thead><tbody></tbody></table>`;
+            <table id="classes-table">
+              <thead><tr><th>الصف</th><th>النظام</th><th>القسم</th><th>إجراء</th></tr></thead>
+              <tbody></tbody>
+            </table>`;
           loadTeacherClasses();
-        } else if (sec === 'students') {
+        }
+        else if (sec === 'students') {
           main.innerHTML = `
             <h2>👨‍🎓 إضافة طالب</h2>
-            <div>... النموذج ...</div>
-            <table id="students-table">...</table>`;
+            <div>... نموذج للطباعة</div>
+            <table id="students-table">
+              ... جدول للعرض
+            </table>`;
           loadClassDropdowns();
-        } else if (sec === 'tests') {
+        }
+        else if (sec === 'tests') {
           main.innerHTML = `
             <h2>🧪 إدخال التقييم</h2>
-            <div>... النموذج ...</div>
-            <table id="eval-summary-table" style="display:none">...</table>`;
+            <div>... نموذج للتقييم</div>
+            <table id="eval-summary-table" style="display:none">... جدول التقييم</table>`;
           loadEvalClasses();
         }
       }
 
-  
+      // دوال الفصل
+     async function addClass() {
+  const grade = document.getElementById('c-grade').value;
+  const system = document.getElementById('c-system').value;
+  const section = document.getElementById('c-section').value;
+
+  const existing = await db.collection('classes')
+    .where('teacher', '==', currentTeacherId)
+    .where('grade', '==', grade)
+    .where('system', '==', system)
+    .where('section', '==', section)
+    .get();
+
+  if (!existing.empty) {
+    alert('⚠️ هذا الفصل مضاف مسبقاً');
+    return;
+  }
+
+  await db.collection('classes').add({
+    grade, system, section,
+    teacher: currentTeacherId
+  });
+
+  alert('✔️ تم إضافة الفصل');
+  loadTeacherClasses();
+}
+
+async function loadTeacherClasses() {
+  const tbody = document.querySelector('#classes-table tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  const snap = await db.collection('classes')
+    .where('teacher', '==', currentTeacherId)
+    .get();
+
+  snap.forEach(doc => {
+    const d = doc.data();
+    tbody.innerHTML += `
+      <tr>
+        <td>${d.grade}</td>
+        <td>${d.system}</td>
+        <td>${d.section}</td>
+        <td><button class="delete-btn" onclick="deleteClass('${doc.id}')">🗑️ حذف</button></td>
+      </tr>`;
+  });
+}
+
+async function deleteClass(classId) {
+  await db.collection('classes').doc(classId).delete();
+  alert('🗑️ تم حذف الفصل');
+  loadTeacherClasses();
+}
+
+      // دوال الطلاب
+     async function addStudent() {
+  const g = document.getElementById('s-grade').value;
+  const s = document.getElementById('s-system').value;
+  const c = document.getElementById('s-section').value;
+  const name = document.getElementById('s-name').value.trim();
+  const gender = document.getElementById('s-gender').value;
+  const religion = document.getElementById('s-religion').value;
+
+  if (!name || !g || !s || !c || !gender || !religion) {
+    return alert('❗ يجب ملء جميع الحقول');
+  }
+
+  const duplicate = await db.collection('students')
+    .where('teacher', '==', currentTeacherId)
+    .where('name', '==', name)
+    .get();
+
+  if (!duplicate.empty) {
+    return alert('⚠️ الاسم موجود بالفعل');
+  }
+
+  const classSnap = await db.collection('classes')
+    .where('grade', '==', g)
+    .where('system', '==', s)
+    .where('section', '==', c)
+    .where('teacher', '==', currentTeacherId)
+    .get();
+
+  if (classSnap.empty) {
+    return alert('⚠️ لم يتم العثور على الفصل');
+  }
+
+  const classId = classSnap.docs[0].id;
+  const seat = await generateSeat(gender, religion, classId);
+
+  await db.collection('students').add({
+    name, gender, religion,
+    seatNumber: seat,
+    classId,
+    teacher: currentTeacherId
+  });
+
+  alert(`✔️ تم إضافة الطالب ${name} رقم الجلوس: ${seat}`);
+  displayStudents(classId);
+}
+
+async function generateSeat(gender, religion, classId) {
+  const snap = await db.collection('students').where('classId', '==', classId).get();
+  const count = snap.size + 1;
+  const codeG = gender === 'male' ? '1' : '2';
+  const codeR = religion === 'muslim' ? '1' : '2';
+  return codeG + codeR + String(count).padStart(4, '0');
+}
+
+async function loadClassDropdowns() {
+  const grades = document.getElementById('s-grade');
+  grades.innerHTML = `
+    <option>الصف الأول</option><option>الصف الثاني</option><option>الصف الثالث</option>
+    <option>الصف الرابع</option><option>الصف الخامس</option><option>الصف السادس</option>`;
+
+  const systems = document.getElementById('s-system');
+  systems.innerHTML = `<option>عربي</option><option>لغات</option>`;
+
+  const sections = document.getElementById('s-section');
+  sections.innerHTML = `<option>A</option><option>B</option><option>C</option><option>D</option>`;
+
+  const snap = await db.collection('classes').where('teacher', '==', currentTeacherId).limit(1).get();
+  if (!snap.empty) {
+    const classId = snap.docs[0].id;
+    displayStudents(classId);
+  }
+}
+
+async function loadStudentList() {
+  const g = document.getElementById('s-grade').value;
+  const s = document.getElementById('s-system').value;
+  const c = document.getElementById('s-section').value;
+
+  const snap = await db.collection('classes')
+    .where('grade', '==', g)
+    .where('system', '==', s)
+    .where('section', '==', c)
+    .where('teacher', '==', currentTeacherId)
+    .get();
+
+  if (snap.empty) {
+    alert('⚠️ الفصل غير موجود');
+    return;
+  }
+
+  const classId = snap.docs[0].id;
+  displayStudents(classId);
+
+  const list = document.getElementById('students-list');
+  list.innerHTML = '';
+  const studentsSnap = await db.collection('students').where('classId', '==', classId).get();
+
+  studentsSnap.forEach(doc => {
+    const d = doc.data();
+    const opt = document.createElement('option');
+    opt.value = d.name;
+    list.appendChild(opt);
+  });
+}
+
+async function displayStudents(classId) {
+  const tbody = document.querySelector('#students-table tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  const snap = await db.collection('students')
+    .where('classId', '==', classId)
+    .orderBy('seatNumber')
+    .get();
+
+  snap.forEach(doc => {
+    const d = doc.data();
+    tbody.innerHTML += `
+      <tr>
+        <td>${d.name}</td>
+        <td>${d.gender === 'male' ? 'ذكر' : 'أنثى'}</td>
+        <td>${d.religion === 'muslim' ? 'مسلم' : 'مسيحي'}</td>
+        <td>${d.seatNumber}</td>
+      </tr>`;
+  });
+}
+
+
+      // دوال التقييم
+      async function loadEvalClasses() {
+  const sel = document.getElementById('eval-class');
+  sel.innerHTML = '';
+
+  const snap = await db.collection('classes')
+    .where('teacher', '==', currentTeacherId)
+    .get();
+
+  snap.forEach(doc => {
+    const d = doc.data();
+    const opt = document.createElement('option');
+    opt.value = doc.id;
+    opt.textContent = `${d.grade} - ${d.system} - ${d.section}`;
+    sel.appendChild(opt);
+  });
+
+  if (snap.docs.length > 0) {
+    loadEvalStudents();
+  }
+}
+
+async function loadEvalStudents() {
+  const classId = document.getElementById('eval-class').value;
+  const sel = document.getElementById('eval-student');
+  sel.innerHTML = '';
+
+  const snap = await db.collection('students')
+    .where('classId', '==', classId)
+    .orderBy('seatNumber')
+    .get();
+
+  snap.forEach(doc => {
+    const d = doc.data();
+    const opt = document.createElement('option');
+    opt.value = doc.id;
+    opt.textContent = d.name;
+    sel.appendChild(opt);
+  });
+
+  updateStudentName();
+}
+
+async function updateStudentName() {
+  const studentId = document.getElementById('eval-student').value;
+  const span = document.getElementById('stu-name');
+  if (!studentId) return span.textContent = '';
+  const doc = await db.collection('students').doc(studentId).get();
+  if (doc.exists) span.textContent = doc.data().name;
+}
+
+async function submitEvaluation() {
+  const classId = document.getElementById('eval-class').value;
+  const studentId = document.getElementById('eval-student').value;
+  const month = document.getElementById('eval-month').value;
+  const year = new Date().getFullYear();
+
+  const test = parseInt(document.getElementById('input-test').value) || 0;
+  const home = parseInt(document.getElementById('input-home').value) || 0;
+  const part = parseInt(document.getElementById('input-part').value) || 0;
+  const beh = parseInt(document.getElementById('input-beh').value) || 0;
+  const total = test + home + part + beh;
+
+  if (!studentId || !classId || !month) {
+    return alert('⚠️ تأكد من اختيار الفصل والطالب والشهر');
+  }
+
+  const check = await db.collection('evaluations')
+    .where('classId', '==', classId)
+    .where('studentId', '==', studentId)
+    .where('month', '==', month)
+    .get();
+
+  if (!check.empty) {
+    return alert('⚠️ تم تقييم هذا الطالب لهذا الشهر مسبقاً');
+  }
+
+  const studentDoc = await db.collection('students').doc(studentId).get();
+  const name = studentDoc.exists ? studentDoc.data().name : 'طالب';
+
+  await db.collection('evaluations').add({
+    classId, studentId, teacher: currentTeacherId,
+    name, test, home, part, beh, total, month, year
+  });
+
+  alert('✔️ تم حفظ التقييم بنجاح');
+  showEvaluationSummary();
+}
+
+async function showEvaluationSummary() {
+  const classId = document.getElementById('eval-class').value;
+  const month = document.getElementById('eval-month').value;
+
+  const table = document.getElementById('eval-summary-table');
+  const tbody = table.querySelector('tbody');
+  tbody.innerHTML = '';
+
+  const snap = await db.collection('evaluations')
+    .where('classId', '==', classId)
+    .where('month', '==', month)
+    .get();
+
+  if (snap.empty) {
+    table.style.display = 'none';
+    return;
+  }
+
+  snap.forEach(doc => {
+    const d = doc.data();
+    tbody.innerHTML += `
+      <tr>
+        <td>${d.name}</td>
+        <td>${d.test}</td>
+        <td>${d.home}</td>
+        <td>${d.part}</td>
+        <td>${d.beh}</td>
+        <td>${d.total}</td>
+      </tr>`;
+  });
+
+  table.style.display = '';
+}
+
+    });
   </script>
 </body>
 </html>
-
-    // ✅ إضافة فصل جديد
-async function addClass() {
-  const grade = document.getElementById('c-grade').value;
-  const system = document.getElementById('c-system').value;
-  const section = document.getElementById('c-section').value;
-
-  const existing = await db.collection('classes')
-    .where('teacher', '==', currentTeacherId)
-    .where('grade', '==', grade)
-    .where('system', '==', system)
-    .where('section', '==', section)
-    .get();
-
-  if (\!existing.empty) {
-    alert('⚠️ هذا الفصل مضاف مسبقاً');
-    return;
-  }
-
-  await db.collection('classes').add({
-    grade,
-    system,
-    section,
-    teacher: currentTeacherId
-  });
-
-  alert('✔️ تم إضافة الفصل');
-  loadTeacherClasses();
-}
-
-// ✅ تحميل فصول المعلم وعرضها في الجدول
-async function loadTeacherClasses() {
-  const tbody = document.querySelector('\#classes-table tbody');
-  if (\!tbody) return;
-  tbody.innerHTML = '';
-
-  const snap = await db.collection('classes')
-    .where('teacher', '==', currentTeacherId)
-    .get();
-
-  snap.forEach(doc =\> {
-    const d = doc.data();
-    tbody.innerHTML += `        <tr>         <td>${d.grade}</td>         <td>${d.system}</td>         <td>${d.section}</td>         <td><button class="delete-btn" onclick="deleteClass('${doc.id}')">🗑️ حذف</button></td>       </tr> `;
-  });
-}
-
-// ✅ حذف فصل
-async function deleteClass(classId) {
-  await db.collection('classes').doc(classId).delete();
-  alert('🗑️ تم حذف الفصل');
-  loadTeacherClasses();
-}
-
-// ✅ إضافة طالب جديد
-async function addStudent() {
-  const g = document.getElementById('s-grade').value;
-  const s = document.getElementById('s-system').value;
-  const c = document.getElementById('s-section').value;
-  const name = document.getElementById('s-name').value.trim();
-  const gender = document.getElementById('s-gender').value;
-  const religion = document.getElementById('s-religion').value;
-
-  if (\!name || \!g || \!s || \!c || \!gender || \!religion) {
-    return alert('❗ يجب ملء جميع الحقول الخاصة بالطالب');
-  }
-
-  // التحقق من التكرار داخل جميع الصفوف
-  const duplicate = await db.collection('students')
-    .where('teacher', '==', currentTeacherId)
-    .where('name', '==', name)
-    .get();
-
-  if (\!duplicate.empty) {
-    return alert('⚠️ الاسم موجود بالفعل يرجى التأكد من اسم الطالب');
-  }
-
-  const classSnap = await db.collection('classes')
-    .where('grade', '==', g)
-    .where('system', '==', s)
-    .where('section', '==', c)
-    .where('teacher', '==', currentTeacherId)
-    .get();
-
-  if (classSnap.empty) {
-    return alert('⚠️ عفوا... أنت لم تدرس لهذا الفصل');
-  }
-
-  const classId = classSnap.docs[0].id;
-  const seat = await generateSeat(gender, religion, classId);
-
-  await db.collection('students').add({
-    name, gender, religion,
-    seatNumber: seat,
-    classId,
-    teacher: currentTeacherId
-  });
-
-  alert(`✔️ تم إضافة الطالب ${name} رقم الجلوس: ${seat}`);
-  displayStudents(classId);
-}
-
-// ✅ توليد رقم الجلوس
-async function generateSeat(gender, religion, classId) {
-  const snap = await db.collection('students').where('classId','==',classId).get();
-  const count = snap.size + 1;
-  const codeG = gender === 'male' ? '1' : '2';
-  const codeR = religion === 'muslim' ? '1' : '2';
-  return codeG + codeR + String(count).padStart(4, '0');
-}
-
-// ✅ تحميل القوائم المنسدلة الثابتة
-async function loadClassDropdowns() {
-  const grades = document.getElementById('s-grade');
-  grades.innerHTML = `      <option>الصف الأول</option>     <option>الصف الثاني</option>     <option>الصف الثالث</option>     <option>الصف الرابع</option>     <option>الصف الخامس</option>     <option>الصف السادس</option> `;
-
-  const systems = document.getElementById('s-system');
-  systems.innerHTML = `<option>عربي</option><option>لغات</option>`;
-
-  const sections = document.getElementById('s-section');
-  sections.innerHTML = `<option>A</option><option>B</option><option>C</option><option>D</option>`;
-
-  const snap = await db.collection('classes').where('teacher','==',currentTeacherId).limit(1).get();
-  if (\!snap.empty) {
-    const classId = snap.docs[0].id;
-    displayStudents(classId);
-  }
-}
-
-// ✅ عرض طلاب الفصل المحدد
-async function displayStudents(classId) {
-  const tbody = document.querySelector('\#students-table tbody');
-  if (\!tbody) return;
-  tbody.innerHTML = '';
-
-  const snap = await db.collection('students')
-    .where('classId', '==', classId)
-    .orderBy('seatNumber')
-    .get();
-
-  snap.forEach(doc =\> {
-    const d = doc.data();
-    tbody.innerHTML += `        <tr>         <td>${d.name}</td>         <td>${d.gender === 'male' ? 'ذكر' : 'أنثى'}</td>         <td>${d.religion === 'muslim' ? 'مسلم' : 'مسيحي'}</td>         <td>${d.seatNumber}</td>       </tr> `;
-  });
-}
-
-// ✅ زر "عرض طلاب الفصل"
-async function loadStudentList() {
-  const g = document.getElementById('s-grade').value;
-  const s = document.getElementById('s-system').value;
-  const c = document.getElementById('s-section').value;
-
-  const snap = await db.collection('classes')
-    .where('grade', '==', g)
-    .where('system', '==', s)
-    .where('section', '==', c)
-    .where('teacher', '==', currentTeacherId)
-    .get();
-
-  if (snap.empty) {
-    alert('⚠️ الفصل غير موجود');
-    return;
-  }
-
-  const classId = snap.docs[0].id;
-  displayStudents(classId);
-
-  // تعبئة datalist للبحث
-  const list = document.getElementById('students-list');
-  list.innerHTML = '';
-  const studentsSnap = await db.collection('students').where('classId', '==', classId).get();
-
-  studentsSnap.forEach(doc =\> {
-    const d = doc.data();
-    const opt = document.createElement('option');
-    opt.value = d.name;
-    list.appendChild(opt);
-  });
-}
-
-// تحميل فصول المعلم لقائمة إدخال التقييم
-async function loadEvalClasses() {
-  const sel = document.getElementById('eval-class');
-  sel.innerHTML = '';
-
-  const snap = await db.collection('classes')
-    .where('teacher', '==', currentTeacherId)
-    .get();
-
-  snap.forEach(doc =\> {
-    const d = doc.data();
-    const opt = document.createElement('option');
-    opt.value = doc.id;
-    opt.textContent = `${d.grade} - ${d.system} - ${d.section}`;
-    sel.appendChild(opt);
-  });
-
-  if (snap.docs.length \> 0) {
-    loadEvalStudents();
-  }
-}
-
-// تحميل طلاب الفصل المختار
-async function loadEvalStudents() {
-  const classId = document.getElementById('eval-class').value;
-  const sel = document.getElementById('eval-student');
-  sel.innerHTML = '';
-
-  const snap = await db.collection('students')
-    .where('classId', '==', classId)
-    .orderBy('seatNumber')
-    .get();
-
-  snap.forEach(doc =\> {
-    const d = doc.data();
-    const opt = document.createElement('option');
-    opt.value = doc.id;
-    opt.textContent = d.name;
-    sel.appendChild(opt);
-  });
-
-  updateStudentName();
-}
-
-// عرض اسم الطالب المحدد
-async function updateStudentName() {
-  const studentId = document.getElementById('eval-student').value;
-  const span = document.getElementById('stu-name');
-  if (\!studentId) return span.textContent = '';
-  const doc = await db.collection('students').doc(studentId).get();
-  if (doc.exists) span.textContent = doc.data().name;
-}
-
-// حفظ التقييم للطالب
-async function submitEvaluation() {
-  const classId = document.getElementById('eval-class').value;
-  const studentId = document.getElementById('eval-student').value;
-  const month = document.getElementById('eval-month').value;
-  const year = new Date().getFullYear();
-
-  const test = parseInt(document.getElementById('input-test').value) || 0;
-  const home = parseInt(document.getElementById('input-home').value) || 0;
-  const part = parseInt(document.getElementById('input-part').value) || 0;
-  const beh = parseInt(document.getElementById('input-beh').value) || 0;
-  const total = test + home + part + beh;
-
-  if (\!studentId || \!classId || \!month) return alert('⚠️ تأكد من اختيار الفصل والطالب والشهر');
-
-  // التحقق من التكرار
-  const check = await db.collection('evaluations')
-    .where('classId', '==', classId)
-    .where('studentId', '==', studentId)
-    .where('month', '==', month)
-    .get();
-
-  if (\!check.empty) {
-    return alert('⚠️ تم تقييم هذا الطالب لهذا الشهر مسبقاً');
-  }
-
-  const studentDoc = await db.collection('students').doc(studentId).get();
-  const name = studentDoc.exists ? studentDoc.data().name : 'طالب';
-
-  await db.collection('evaluations').add({
-    classId,
-    studentId,
-    teacher: currentTeacherId,
-    name,
-    test,
-    home,
-    part,
-    beh,
-    total,
-    month,
-    year
-  });
-
-  alert('✔️ تم حفظ التقييم بنجاح');
-  showEvaluationSummary();
-}
-
-// عرض ملخص التقييم في الجدول أسفل الصفحة
-async function showEvaluationSummary() {
-  const classId = document.getElementById('eval-class').value;
-  const month = document.getElementById('eval-month').value;
-
-  const table = document.getElementById('eval-summary-table');
-  const tbody = table.querySelector('tbody');
-  tbody.innerHTML = '';
-
-  const snap = await db.collection('evaluations')
-    .where('classId', '==', classId)
-    .where('month', '==', month)
-    .get();
-
-  if (snap.empty) {
-    table.style.display = 'none';
-    return;
-  }
-
-  snap.forEach(doc =\> {
-    const d = doc.data();
-    const row = `<tr>       <td>${d.name}</td>       <td>${d.test}</td>       <td>${d.home}</td>       <td>${d.part}</td>       <td>${d.beh}</td>       <td>${d.total}</td>     </tr>`;
-    tbody.innerHTML += row;
-  });
-
-  table.style.display = '';
-}
-  });
-  \</script\> 
-
-\</body\>
-\</html\>
-
-
-
