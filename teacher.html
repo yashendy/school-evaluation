@@ -382,7 +382,7 @@ async function loadStudentList() {
 }
 // 🌟 المرحلة 5: إدخال التقييمات
 
-else if (sec === 'tests') {
+if (sec === 'tests') {
   main.innerHTML = `
     <div id="tests-section"><h2>🧪 إدخال الاختبارات</h2>
     <div>
@@ -552,6 +552,7 @@ async function showEvaluationSummary() {
   </script> 
 </body>
 </html>
+
 
 
 
