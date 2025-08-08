@@ -240,87 +240,131 @@
         });
       }
 
-      // ——— دوال التقييم ———
-      async function loadEvalClasses() {
-        const sel = document.getElementById('eval-class');
-        sel.innerHTML = '';
-        const snap = await db.collection('classes').where('teacher','==',currentTeacherId).get();
-        snap.forEach(doc => {
-          const opt = document.createElement('option');
-          const d = doc.data();
-          opt.value = doc.id;
-          opt.textContent = `${d.grade} - ${d.system} - ${d.section}`;
-          sel.appendChild(opt);
-        });
-        if (snap.docs.length) loadEvalStudents();
-      }
+     // ——— دوال التقييم ———
+async function loadEvalClasses() {
+  const sel = document.getElementById('eval-class');
+  sel.innerHTML = '';
+  const snap = await db.collection('classes').where('teacher', '==', currentTeacherId).get();
+  snap.forEach(doc => {
+    const opt = document.createElement('option');
+    const d = doc.data();
+    opt.value = doc.id;
+    opt.textContent = `${d.grade} - ${d.system} - ${d.section}`;
+    sel.appendChild(opt);
+  });
+  if (snap.docs.length) loadEvalStudents();
+}
 
-      async function loadEvalStudents() {
-        const classId = document.getElementById('eval-class').value;
-        const sel = document.getElementById('eval-student');
-        sel.innerHTML = '';
-        const snap = await db.collection('students').where('classId','==',classId).orderBy('seatNumber').get();
-        snap.forEach(doc => {
-          const opt = document.createElement('option');
-          opt.value = doc.id;
-          opt.textContent = doc.data().name;
-          sel.appendChild(opt);
-        });
-        updateStudentName();
-      }
+async function loadEvalStudents() {
+  const classId = document.getElementById('eval-class').value;
+  const sel = document.getElementById('eval-student');
+  sel.innerHTML = '';
+  const snap = await db.collection('students').where('classId', '==', classId).orderBy('seatNumber').get();
+  snap.forEach(doc => {
+    const opt = document.createElement('option');
+    opt.value = doc.id;
+    opt.textContent = doc.data().name;
+    sel.appendChild(opt);
+  });
+  updateStudentName();
+}
 
-      async function updateStudentName() {
-        const studentId = document.getElementById('eval-student').value;
-        const span = document.getElementById('stu-name');
-        if (!studentId) return span.textContent = '';
-        const doc = await db.collection('students').doc(studentId).get();
-        if (doc.exists) span.textContent = doc.data().name;
-      }
+async function updateStudentName() {
+  const studentId = document.getElementById('eval-student').value;
+  const span = document.getElementById('stu-name');
+  if (!studentId) return span.textContent = '';
+  const doc = await db.collection('students').doc(studentId).get();
+  if (doc.exists) span.textContent = doc.data().name;
+}
 
-      async function submitEvaluation() {
-        const classId = document.getElementById('eval-class').value;
-        const studentId = document.getElementById('eval-student').value;
-        const month = document.getElementById('eval-month').value;
-        const year = new Date().getFullYear();
-        const test = parseInt(document.getElementById('input-test').value) || 0;
-        const home = parseInt(document.getElementById('input-home').value) || 0;
-        const part = parseInt(document.getElementById('input-part').value) || 0;
-        const beh = parseInt(document.getElementById('input-beh').value) || 0;
-        const total = test + home + part + beh;
+async function submitEvaluation() {
+  const classId = document.getElementById('eval-class').value;
+  const studentId = document.getElementById('eval-student').value;
+  const month = document.getElementById('eval-month').value;
+  const year = new Date().getFullYear();
+  const test = parseInt(document.getElementById('input-test').value) || 0;
+  const home = parseInt(document.getElementById('input-home').value) || 0;
+  const part = parseInt(document.getElementById('input-part').value) || 0;
+  const beh = parseInt(document.getElementById('input-beh').value) || 0;
+  const total = test + home + part + beh;
 
-        if (!studentId || !classId || !month) { alert('⚠️ تأكد من إدخال جميع البيانات'); return; }
+  if (!studentId || !classId || !month) {
+    alert('⚠️ تأكد من إدخال جميع البيانات');
+    return;
+  }
 
-        const check = await db.collection('evaluations').where('classId','==',classId).where('studentId','==',studentId).where('month','==',month).get();
-        if (!check.empty) { alert('⚠️ تم التقييم لهذا الشهر'); return; }
+  const check = await db.collection('evaluations')
+    .where('classId', '==', classId)
+    .where('studentId', '==', studentId)
+    .where('month', '==', month)
+    .get();
 
-        const studentDoc = await db.collection('students').doc(studentId).get();
-        const name = studentDoc.exists ? studentDoc.data().name : 'طالب';
-        await db.collection('evaluations').add({ classId, studentId, teacher: currentTeacherId, name, test, home, part, beh, total, month, year });
-        alert('✔️ التقييم محفوظ بنجاح');
-        showEvaluationSummary();
-      }
+  if (!check.empty) {
+    alert('⚠️ تم التقييم لهذا الشهر');
+    return;
+  }
 
-      async function showEvaluationSummary() {
-        const classId = document.getElementById('eval-class').value;
-        const month = document.getElementById('eval-month').value;
-        const table = document.getElementById('eval-summary-table');
-        const tbody = table.querySelector('tbody');
-        tbody.innerHTML = '';
+  const studentDoc = await db.collection('students').doc(studentId).get();
+  const name = studentDoc.exists ? studentDoc.data().name : 'طالب';
 
-        const snap = await db.collection('evaluations').where('classId','==',classId).where('month','==',month).get();
-        if (snap.empty) { table.style.display = 'none'; return; }
+  await db.collection('evaluations').add({
+    classId, studentId, teacher: currentTeacherId,
+    name, test, home, part, beh, total, month, year
+  });
 
-        snap.forEach(doc => {
-          const d = doc.data();
-          tbody.innerHTML += `<tr><td>${d.name}</td><td>${d.test}</td><td>${d.home}</td><td>${d.part}</td><td>${d.beh}</td><td>${d.total}</td></tr>`;
-        });
+  alert('✔️ التقييم محفوظ بنجاح');
+  showEvaluationSummary();
+}
 
+async function showEvaluationSummary() {
+  const classId = document.getElementById('eval-class').value;
+  const month = document.getElementById('eval-month').value;
+  const table = document.getElementById('eval-summary-table');
+  const tbody = table.querySelector('tbody');
+  tbody.innerHTML = '';
+
+  const snap = await db.collection('evaluations')
+    .where('classId', '==', classId)
+    .where('month', '==', month)
+    .get();
+
+  if (snap.empty) {
+    table.style.display = 'none';
+    return;
+  }
+
+  snap.forEach(doc => {
+    const d = doc.data();
+
+    const testMark = d.test === 0 ? 'غ' : d.test;
+    let evaluation = '';
+
+    if (d.test === 0) {
+      evaluation = 'غياب';
+    } else if (d.total === 40) {
+      evaluation = 'ممتاز مع الشكر';
+    } else if (d.total < 40) {
+      evaluation = 'يرجى تشجيع الطفل لرفع مستواه';
+    }
+
+    tbody.innerHTML += `
+      <tr>
+        <td>${d.name}</td>
+        <td>${testMark}</td>
+        <td>${d.home}</td>
+        <td>${d.part}</td>
+        <td>${d.beh}</td>
+        <td>${d.total}</td>
+        <td>${evaluation}</td>
+      </tr>`;
+  });
         table.style.display = '';
       }
     });
   </script>
 </body>
 </html>
+
 
 
 
