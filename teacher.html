@@ -5,7 +5,7 @@
   <title>لوحة تحكم المعلم</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Firebase و jsPDF -->
+  <!-- Firebase وjsPDF -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
@@ -76,12 +76,17 @@
               <select id="c-grade"><option>الصف الأول</option><option>الصف الثاني</option><option>الصف الثالث</option><option>الصف الرابع</option><option>الصف الخامس</option><option>الصف السادس</option></select>
               <select id="c-system"><option>عربي</option><option>لغات</option></select>
               <select id="c-section"><option>A</option><option>B</option><option>C</option><option>D</option></select>
-              <button class="save-btn" onclick="addClass()">إضافة فصل</button>
+              <button class="save-btn" id="btn-add-class">إضافة فصل</button>
             </div>
-            <table id="classes-table"><thead><tr><th>الصف</th><th>النظام</th><th>القسم</th><th>إجراء</th></tr></thead><tbody></tbody></table>`;
-          loadTeacherClasses();
+            <table id="classes-table">
+              <thead><tr><th>الصف</th><th>النظام</th><th>القسم</th><th>إجراء</th></tr></thead>
+              <tbody></tbody>
+            </table>`;
+          requestAnimationFrame(() => {
+            document.getElementById('btn-add-class').addEventListener('click', addClass);
+            loadTeacherClasses();
+          });
         }
-
         else if (sec === 'students') {
           main.innerHTML = `
             <h2>👨‍🎓 إضافة طالب</h2>
@@ -92,22 +97,25 @@
               <input id="s-name" placeholder="اسم الطالب" />
               <select id="s-gender"><option value="male">ذكر</option><option value="female">أنثى</option></select>
               <select id="s-religion"><option value="muslim">مسلم</option><option value="christian">مسيحي</option></select>
-              <button class="save-btn" onclick="addStudent()">إضافة الطالب</button>
-              <button class="save-btn" onclick="loadStudentList()">عرض طلاب الفصل</button>
-              <input type="search" id="student-search" placeholder="ابحث باسم الطالب..." list="students-list" /><datalist id="students-list"></datalist>
+              <button class="save-btn" id="btn-add-student">إضافة الطالب</button>
+              <button class="save-btn" id="btn-load-students">عرض طلاب الفصل</button>
+              <input type="search" id="student-search" placeholder="ابحث باسم الطالب..." list="students-list" />
+              <datalist id="students-list"></datalist>
             </div>
             <h3>📋 طلاب الفصل</h3>
             <table id="students-table"><thead><tr><th>الاسم</th><th>الجنس</th><th>الديانة</th><th>رقم الجلوس</th></tr></thead><tbody></tbody></table>`;
-          requestAnimationFrame(loadClassDropdowns);
+          requestAnimationFrame(() => {
+            document.getElementById('btn-add-student').addEventListener('click', addStudent);
+            document.getElementById('btn-load-students').addEventListener('click', loadStudentList);
+            loadClassDropdowns();
+          });
         }
-
         else if (sec === 'tests') {
           main.innerHTML = `
             <h2>🧪 إدخال التقييم</h2>
             <div>
               <label>الشهر:</label>
-              <select id="eval-month">${["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"]
-                .map(m => `<option>${m}</option>`).join('')}</select>
+              <select id="eval-month">${["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"].map(m => `<option>${m}</option>`).join('')}</select>
               <label>الفصل:</label><select id="eval-class" onchange="loadEvalStudents()"></select>
               <label>الطالب:</label><select id="eval-student" onchange="updateStudentName()"></select>
               <p>اسم الطالب: <span id="stu-name"></span></p>
@@ -115,14 +123,16 @@
               <label>واجب:</label><input type="number" id="input-home" min="0" max="10" />
               <label>مشاركة:</label><input type="number" id="input-part" min="0" max="10" />
               <label>سلوك:</label><input type="number" id="input-beh" value="10" min="0" max="10" />
-              <button id="save-eval-btn" class="save-btn">حفظ التقييم</button>
+              <button class="save-btn" id="btn-save-eval">حفظ التقييم</button>
             </div>
             <table id="eval-summary-table" style="width:100%; margin-top:20px; display:none;"><thead><tr><th>الاسم</th><th>اختبار</th><th>واجب</th><th>مشاركة</th><th>سلوك</th><th>المجموع</th></tr></thead><tbody></tbody></table>`;
-          
-          requestAnimationFrame(loadEvalClasses);
-          document.getElementById('save-eval-btn').addEventListener('click', submitEvaluation);
+          requestAnimationFrame(() => {
+            loadEvalClasses();
+            document.getElementById('btn-save-eval').addEventListener('click', submitEvaluation);
+          });
         }
       }
+
       // ——— دوال Classes ———
       async function addClass() {
         const grade = document.getElementById('c-grade').value;
@@ -311,5 +321,6 @@
   </script>
 </body>
 </html>
+
 
 
