@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <title>لوحة تحكم المعلم</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-  <!-- روابط Firebase و jsPDF -->
+  
+  <!-- Firebase و jsPDF -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
@@ -40,7 +40,7 @@
   </div>
 
   <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', () => {
       const auth = firebase.auth();
       const db = firebase.firestore();
       let currentTeacherId = null;
@@ -49,8 +49,8 @@
         if (!user) return location.href = 'index.html';
         currentTeacherId = user.uid;
 
-        const userDoc = await db.collection('users').doc(currentTeacherId).get();
-        const data = userDoc.data();
+        const doc = await db.collection('users').doc(currentTeacherId).get();
+        const data = doc.data();
         if (!data || data.type !== 'teacher') {
           alert('❌ ليس لديك صلاحية الوصول');
           return auth.signOut().then(() => location.href = 'index.html');
@@ -78,39 +78,33 @@
               <select id="c-section"><option>A</option><option>B</option><option>C</option><option>D</option></select>
               <button class="save-btn" onclick="addClass()">إضافة فصل</button>
             </div>
-            <table id="classes-table">
-              <thead><tr><th>الصف</th><th>النظام</th><th>القسم</th><th>إجراء</th></tr></thead>
-              <tbody></tbody>
-            </table>`;
+            <table id="classes-table"><thead><tr><th>الصف</th><th>النظام</th><th>القسم</th><th>إجراء</th></tr></thead><tbody></tbody></table>`;
           loadTeacherClasses();
         }
         else if (sec === 'students') {
           main.innerHTML = `
             <h2>👨‍🎓 إضافة طالب</h2>
             <div>
-              <select id="s-grade"><option>الصف الأول</option><option>الصف الثاني</option><option>الصف الثالث</option><option>الصف الرابع</option><option>الصف الخامس</option><option>الصف السادس</option></select>
-              <select id="s-system"><option>عربي</option><option>لغات</option></select>
-              <select id="s-section"><option>A</option><option>B</option><option>C</option><option>D</option></select>
+              <select id="s-grade"></select>
+              <select id="s-system"></select>
+              <select id="s-section"></select>
               <input id="s-name" placeholder="اسم الطالب" />
               <select id="s-gender"><option value="male">ذكر</option><option value="female">أنثى</option></select>
               <select id="s-religion"><option value="muslim">مسلم</option><option value="christian">مسيحي</option></select>
               <button class="save-btn" onclick="addStudent()">إضافة الطالب</button>
               <button class="save-btn" onclick="loadStudentList()">عرض طلاب الفصل</button>
-              <input type="search" id="student-search" placeholder="ابحث باسم الطالب..." list="students-list" />
-              <datalist id="students-list"></datalist>
+              <input type="search" id="student-search" placeholder="ابحث باسم الطالب..." list="students-list" /><datalist id="students-list"></datalist>
             </div>
             <h3>📋 طلاب الفصل</h3>
             <table id="students-table"><thead><tr><th>الاسم</th><th>الجنس</th><th>الديانة</th><th>رقم الجلوس</th></tr></thead><tbody></tbody></table>`;
-          loadClassDropdowns();
+          requestAnimationFrame(loadClassDropdowns);
         }
         else if (sec === 'tests') {
           main.innerHTML = `
             <h2>🧪 إدخال التقييم</h2>
             <div>
               <label>الشهر:</label>
-              <select id="eval-month">
-                ${["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"].map(m=>`<option>${m}</option>`).join('')}
-              </select>
+              <select id="eval-month">${["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"].map(m => `<option>${m}</option>`).join('')}</select>
               <label>الفصل:</label><select id="eval-class" onchange="loadEvalStudents()"></select>
               <label>الطالب:</label><select id="eval-student" onchange="updateStudentName()"></select>
               <p>اسم الطالب: <span id="stu-name"></span></p>
@@ -120,10 +114,8 @@
               <label>سلوك:</label><input type="number" id="input-beh" value="10" min="0" max="10" />
               <button class="save-btn" onclick="submitEvaluation()">حفظ التقييم</button>
             </div>
-            <table id="eval-summary-table" style="width:100%; margin-top:20px; display:none;">
-              <thead><tr><th>الاسم</th><th>اختبار</th><th>واجب</th><th>مشاركة</th><th>سلوك</th><th>المجموع</th></tr></thead><tbody></tbody>
-            </table>`;
-          loadEvalClasses();
+            <table id="eval-summary-table" style="width:100%; margin-top:20px; display:none;"><thead><tr><th>الاسم</th><th>اختبار</th><th>واجب</th><th>مشاركة</th><th>سلوك</th><th>المجموع</th></tr></thead><tbody></tbody></table>`;
+                  loadEvalClasses();
         }
       }
 
@@ -315,3 +307,4 @@
   </script>
 </body>
 </html>
+
