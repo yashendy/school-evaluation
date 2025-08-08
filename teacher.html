@@ -1,91 +1,114 @@
-\<\!DOCTYPE html\>
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>لوحة تحكم المعلم</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/3.0.1/jspdf.umd.min.js"></script>
+  <script src="firebase-config.js"></script>
+  <style>
+    /* ... CSS الخاص بك ... */
+  </style>
+</head>
+<body>
+  <div class="main-container">
+    <aside class="sidebar">
+      <img src="logo.png" alt="Logo" />
+      <h3 id="teacher-name">تحميل...</h3>
+      <button data-sec="classes">📘 الفصول</button>
+      <button data-sec="students">👨‍🎓 الطلاب</button>
+      <button data-sec="tests">🧪 إدخال الاختبارات</button>
+      <button onclick="window.location.href='evaluations.html'">📄 عرض التقييمات</button>
+      <button onclick="auth.signOut().then(()=>location.href='index.html')">🚪 تسجيل الخروج</button>
+    </aside>
+    <main class="content">
+      <div id="main-content"></div>
+    </main>
+  </div>
 
-\<html lang="ar" dir="rtl"\>
-\<head\>
-  \<meta charset="UTF-8" /\>
-  \<title\>لوحة تحكم المعلم\</title\>
-  \<meta name="viewport" content="width=device-width, initial-scale=1.0" /\>
-    \<script src="[https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js](https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js)"\>\</script\>
-  \<script src="[https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js](https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js)"\>\</script\>
-  \<script src="[https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js](https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js)"\>\</script\>
-  \<script src="[https://cdnjs.cloudflare.com/ajax/libs/jspdf/3.0.1/jspdf.umd.min.js](https://cdnjs.cloudflare.com/ajax/libs/jspdf/3.0.1/jspdf.umd.min.js)"\>\</script\>
-  \<script src="firebase-config.js"\>\</script\>
-  \<style\>
-    /\* هنا التنسيق CSS كما سبق \*/
-  \</style\>
-\</head\>
-\<body\>
-  \<div class="main-container"\>
-    \<aside class="sidebar"\>
-      \<img src="logo.png" alt="Logo" /\>
-      \<h3 id="teacher-name"\>تحميل...\</h3\>
-      \<button data-sec="classes"\>📘 الفصول\</button\>
-      \<button data-sec="students"\>👨‍🎓 الطلاب\</button\>
-      \<button data-sec="tests"\>🧪 إدخال الاختبارات\</button\>
-      \<button onclick="window.location.href='evaluations.html'"\>📄 عرض التقييمات\</button\>
-      \<button onclick="auth.signOut().then(()=\>location.href='index.html')"\>🚪 تسجيل الخروج\</button\>
-    \</aside\>
-    \<main class="content"\>\<div id="main-content"\>\</div\>\</main\>
-  \</div\>
+  <script>
+    // المرحلة 1: المصادقة والتحقق من دخول المعلم
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+    let currentTeacherId = null;
 
-  \<script\>
-    // ✅ المرحلة 1: تسجيل الدخول
-    const auth = firebase.auth();
-    const db = firebase.firestore();
-    let currentTeacherId = null;
+    auth.onAuthStateChanged(async user => {
+      if (!user) return location.href = 'index.html';
+      currentTeacherId = user.uid;
+      const doc = await db.collection('users').doc(currentTeacherId).get();
+      const data = doc.data();
+      if (!data || data.type !== 'teacher') {
+        alert('❗ ليس لديك صلاحية الدخول إلى هذه الصفحة');
+        return auth.signOut().then(() => location.href = 'index.html');
+      }
+      document.getElementById('teacher-name').textContent = `أ. ${data.name}`;
+      document.querySelectorAll('.sidebar button[data-sec]')
+        .forEach(btn => btn.addEventListener('click', () => showSection(btn.dataset.sec)));
+      showSection('classes');
+    });
 
-    auth.onAuthStateChanged(async user =\> {
-      if (\!user) return location.href = 'index.html';
-      currentTeacherId = user.uid;
-      const doc = await db.collection('users').doc(currentTeacherId).get();
-      const data = doc.data();
-      if (\!data || data.type \!== 'teacher') {
-        alert('❗ ليس لديك صلاحية الدخول إلى هذه الصفحة');
-        return auth.signOut().then(() =\> location.href = 'index.html');
-      }
-      document.getElementById('teacher-name').textContent = `أ. ${data.name}`;
-      document.querySelectorAll('.sidebar button[data-sec]').forEach(btn =\> {
-        btn.addEventListener('click', () =\> showSection(btn.dataset.sec));
-      });
-      showSection('classes');
-    });
+    // المرحلة 2: دالة التنقل بين الأقسام (الفصول - الطلاب - التقييمات)
+    function showSection(sec) {
+      const main = document.getElementById('main-content');
+      main.innerHTML = '';
 
-    // ✅ المرحلة 2: دالة التنقل بين الأقسام
-    function showSection(sec) {
-      const main = document.getElementById('main-content');
-      main.innerHTML = '';
-
-      if (sec === 'classes') {
-        main.innerHTML = `            <div id="classes-section"><h2>📘 إدارة الفصول</h2>             <div>               <select id="c-grade">                 <option>الصف الأول</option><option>الصف الثاني</option><option>الصف الثالث</option>                 <option>الصف الرابع</option><option>الصف الخامس</option><option>الصف السادس</option>               </select>               <select id="c-system"><option>عربي</option><option>لغات</option></select>               <select id="c-section"><option>A</option><option>B</option><option>C</option><option>D</option></select>               <button class="save-btn" onclick="addClass()">إضافة فصل</button>             </div>             <h3>📚 فصول المعلم</h3>             <table id="classes-table"><thead><tr>               <th>الصف</th><th>النظام</th><th>القسم</th><th>إجراء</th>             </tr></thead><tbody></tbody></table>           </div> `;
-           
-        loadTeacherClasses();
-      } else if (sec === 'students') {
-        main.innerHTML = `            <div id="students-section"><h2>👨‍🎓 إضافة طالب جديد</h2>             <div>               <select id="s-grade">                 <option>الصف الأول</option><option>الصف الثاني</option><option>الصف الثالث</option>                 <option>الصف الرابع</option><option>الصف الخامس</option><option>الصف السادس</option>               </select>               <select id="s-system"><option>عربي</option><option>لغات</option></select>               <select id="s-section"><option>A</option><option>B</option><option>C</option><option>D</option></select>               <input type="text" id="s-name" placeholder="اسم الطالب" />               <select id="s-gender"><option value="male">ذكر</option><option value="female">أنثى</option></select>               <select id="s-religion"><option value="muslim">مسلم</option><option value="christian">مسيحي</option></select>               <button class="save-btn" onclick="addStudent()">إضافة الطالب</button>               <button class="save-btn" onclick="loadStudentList()">عرض طلاب الفصل</button>               <input type="search" id="student-search" placeholder="ابحث باسم الطالب..." list="students-list" />               <datalist id="students-list"></datalist>             </div>             <h3>📋 طلاب الفصل</h3>             <table id="students-table"><thead><tr>               <th>الاسم</th><th>النوع</th><th>الديانة</th><th>رقم الجلوس</th>             </tr></thead><tbody></tbody></table>           </div> `;
-        loadClassDropdowns();
-      } else if (sec === 'tests') {
-        main.innerHTML = `          <div id="tests-section"><h2>🧪 إدخال الاختبارات</h2>             <div>               <label>السنة:</label><span id="year">${new Date().getFullYear()}</span>               <label>الشهر:</label>               <select id="eval-month">                 ${["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"]                   .map(m =>`\<option\>${m}\</option\>\`).join('')}
-              \</select\>
-              \<label\>الفصل:\</label\>\<select id="eval-class" onchange="loadEvalStudents()"\>\</select\>
-              \<label\>الطالب:\</label\>\<select id="eval-student" onchange="updateStudentName()"\>\</select\>
-              \<p\>اسم الطالب: \<span id="stu-name"\>\</span\>\</p\>
-              \<label\>اختبار (10):\</label\>\<input type="number" id="input-test" min="0" max="10"/\>
-              \<label\>واجب (10):\</label\>\<input type="number" id="input-home" min="0" max="10"/\>
-              \<label\>مشاركة (10):\</label\>\<input type="number" id="input-part" min="0" max="10"/\>
-              \<label\>سلوك (10):\</label\>\<input type="number" id="input-beh" value="10" min="0" max="10"/\>
-              \<button class="save-btn" onclick="submitEvaluation()"\>حفظ التقييم\</button\>
-            \</div\>
-
-            \<table id="eval-summary-table" style="width:100%; margin-top:20px; display:none;"\>
-              \<thead\>
-                \<tr\>\<th\>الاسم\</th\>\<th\>اختبار\</th\>\<th\>واجب\</th\>\<th\>مشاركة\</th\>\<th\>سلوك\</th\>\<th\>المجموع\</th\>\</tr\>
-              \</thead\>
-              \<tbody\>\</tbody\>
-            \</table\>
-          \</div\>\`;
-        loadEvalClasses();
-      }
-    }
-
+      if (sec === 'classes') {
+        main.innerHTML = `
+          <div id="classes-section"><h2>📘 إدارة الفصول</h2>
+            <div>
+              <select id="c-grade"> ... </select>
+              <select id="c-system"> ... </select>
+              <select id="c-section"> ... </select>
+              <button class="save-btn" onclick="addClass()">إضافة فصل</button>
+            </div>
+            <h3>📚 فصول المعلم</h3>
+            <table id="classes-table"> ... </table>
+          </div>`;
+        loadTeacherClasses();
+      } else if (sec === 'students') {
+        main.innerHTML = `
+          <div id="students-section"><h2>👨‍🎓 إضافة طالب جديد</h2>
+            <div>
+              <select id="s-grade"> ... </select>
+              <select id="s-system"> ... </select>
+              <select id="s-section"> ... </select>
+              <input id="s-name" placeholder="اسم الطالب" />
+              <select id="s-gender"> ... </select>
+              <select id="s-religion"> ... </select>
+              <button onclick="addStudent()">إضافة الطالب</button>
+              <button onclick="loadStudentList()">عرض طلاب الفصل</button>
+              <input id="student-search" list="students-list" placeholder="ابحث..." />
+              <datalist id="students-list"></datalist>
+            </div>
+            <h3>📋 طلاب الفصل</h3>
+            <table id="students-table"> ... </table>
+          </div>`;
+        loadClassDropdowns();
+      } else if (sec === 'tests') {
+        main.innerHTML = `
+          <div id="tests-section"><h2>🧪 إدخال الاختبارات</h2>
+            <div>
+              <label>السنة:</label><span id="year">${new Date().getFullYear()}</span>
+              <label>الشهر:</label>
+              <select id="eval-month"> ... </select>
+              <label>الفصل:</label><select id="eval-class" onchange="loadEvalStudents()"></select>
+              <label>الطالب:</label><select id="eval-student" onchange="updateStudentName()"></select>
+              <p>اسم الطالب: <span id="stu-name"></span></p>
+              <label>الاختبار:</label><input id="input-test" type="number" />
+              <label>الواجب:</label><input id="input-home" type="number" />
+              <label>المشاركة:</label><input id="input-part" type="number" />
+              <label>السلوك:</label><input id="input-beh" type="number" value="10" />
+              <button onclick="submitEvaluation()">حفظ التقييم</button>
+            </div>
+            <table id="eval-summary-table"> ... </table>
+          </div>`;
+        loadEvalClasses();
+      }
+    }
     // ✅ إضافة فصل جديد
 async function addClass() {
   const grade = document.getElementById('c-grade').value;
@@ -395,3 +418,4 @@ async function showEvaluationSummary() {
 
 \</body\>
 \</html\>
+
