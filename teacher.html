@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <title>لوحة تحكم المعلم</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  
+
   <!-- Firebase و jsPDF -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
@@ -49,8 +49,8 @@
         if (!user) return location.href = 'index.html';
         currentTeacherId = user.uid;
 
-        const doc = await db.collection('users').doc(currentTeacherId).get();
-        const data = doc.data();
+        const userDoc = await db.collection('users').doc(currentTeacherId).get();
+        const data = userDoc.data();
         if (!data || data.type !== 'teacher') {
           alert('❌ ليس لديك صلاحية الوصول');
           return auth.signOut().then(() => location.href = 'index.html');
@@ -81,6 +81,7 @@
             <table id="classes-table"><thead><tr><th>الصف</th><th>النظام</th><th>القسم</th><th>إجراء</th></tr></thead><tbody></tbody></table>`;
           loadTeacherClasses();
         }
+
         else if (sec === 'students') {
           main.innerHTML = `
             <h2>👨‍🎓 إضافة طالب</h2>
@@ -99,12 +100,14 @@
             <table id="students-table"><thead><tr><th>الاسم</th><th>الجنس</th><th>الديانة</th><th>رقم الجلوس</th></tr></thead><tbody></tbody></table>`;
           requestAnimationFrame(loadClassDropdowns);
         }
+
         else if (sec === 'tests') {
           main.innerHTML = `
             <h2>🧪 إدخال التقييم</h2>
             <div>
               <label>الشهر:</label>
-              <select id="eval-month">${["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"].map(m => `<option>${m}</option>`).join('')}</select>
+              <select id="eval-month">${["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"]
+                .map(m => `<option>${m}</option>`).join('')}</select>
               <label>الفصل:</label><select id="eval-class" onchange="loadEvalStudents()"></select>
               <label>الطالب:</label><select id="eval-student" onchange="updateStudentName()"></select>
               <p>اسم الطالب: <span id="stu-name"></span></p>
@@ -112,13 +115,14 @@
               <label>واجب:</label><input type="number" id="input-home" min="0" max="10" />
               <label>مشاركة:</label><input type="number" id="input-part" min="0" max="10" />
               <label>سلوك:</label><input type="number" id="input-beh" value="10" min="0" max="10" />
-              <button class="save-btn" onclick="submitEvaluation()">حفظ التقييم</button>
+              <button id="save-eval-btn" class="save-btn">حفظ التقييم</button>
             </div>
             <table id="eval-summary-table" style="width:100%; margin-top:20px; display:none;"><thead><tr><th>الاسم</th><th>اختبار</th><th>واجب</th><th>مشاركة</th><th>سلوك</th><th>المجموع</th></tr></thead><tbody></tbody></table>`;
-                  loadEvalClasses();
+          
+          requestAnimationFrame(loadEvalClasses);
+          document.getElementById('save-eval-btn').addEventListener('click', submitEvaluation);
         }
       }
-
       // ——— دوال Classes ———
       async function addClass() {
         const grade = document.getElementById('c-grade').value;
@@ -307,4 +311,5 @@
   </script>
 </body>
 </html>
+
 
