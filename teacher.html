@@ -247,7 +247,7 @@
       async function loadStudentList() {
         const g = document.getElementById('s-grade').value;
         const s = document.getElementById('s-system').value;
-        the c = document.getElementById('s-section').value;
+        const c = document.getElementById('s-section').value; // ✅
         const snap = await db.collection('classes').where('grade','==',g).where('system','==',s).where('section','==',c).where('teacher','==',currentTeacherId).get();
         if (snap.empty) { alert('⚠️ الفصل غير موجود'); return; }
         const classId = snap.docs[0].id;
@@ -404,3 +404,4 @@
   </script>
 </body>
 </html>
+
