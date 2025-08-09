@@ -96,7 +96,7 @@
         const main = document.getElementById('main-content');
         main.innerHTML = '';
 
-        // ------- إدارة الفصول -------
+        /* ====== إدارة الفصول ====== */
         if (sec === 'classes') {
           main.innerHTML = `
             <h2>📘 إدارة الفصول</h2>
@@ -121,7 +121,7 @@
           return;
         }
 
-        // ------- الطلاب -------
+        /* ====== الطلاب ====== */
         if (sec === 'students') {
           main.innerHTML = `
             <h2>👨‍🎓 إضافة طالب</h2>
@@ -151,7 +151,7 @@
           return;
         }
 
-        // ------- إدخال التقييم -------
+        /* ====== إدخال التقييم ====== */
         if (sec === 'tests') {
           main.innerHTML = `
             <h2>🧪 إدخال التقييم</h2>
@@ -320,7 +320,7 @@
 
       /* ====== EVALUATIONS ====== */
 
-      // فتح الشهادة لاسم طالب معيّن
+      // فتح الشهادة لاسم طالب معيّن في تبويب جديد
       function openCertificateForStudent(studentName){
         const month = document.getElementById('eval-month').value;
         const year  = new Date().getFullYear();
@@ -332,7 +332,14 @@
           klass: classText,
           teacher: `أ. ${currentTeacherName || ''}`
         });
-        window.open(`${CERT_PAGE}?${q.toString()}`, '_blank', 'noopener');
+        const url = `certificate.html?${q.toString()}`;
+
+        // فتح مضمون في تبويب جديد (بدون ما يتمنع كـ popup)
+        const a = document.createElement('a');
+        a.href = url; a.target = '_blank'; a.rel = 'noopener';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
       }
 
       async function loadEvalClasses() {
@@ -426,15 +433,17 @@
 
         snap.forEach((doc) => {
           const d = doc.data();
+          const totalNum = Number(d.total);
           const testMark = (d.test === 0) ? 'غ' : d.test;
+
           let evaluation = '';
           if (d.test === 0) evaluation = 'غياب';
-          else if (d.total === 40) evaluation = 'ممتاز مع الشكر';
-          else if (d.total >= 36) evaluation = 'ممتاز';
+          else if (totalNum === 40) evaluation = 'ممتاز مع الشكر';
+          else if (totalNum >= 36) evaluation = 'ممتاز';
           else evaluation = 'يرجى تشجيع الطفل لرفع مستواه';
 
-          const certCell = (d.total === 40)
-            ? `<button type="button" class="btn-cert cert-btn" data-name="${d.name}">🏆</button>`
+          const certCell = (totalNum === 40)
+            ? `<button type="button" class="btn-cert cert-btn" data-name="${d.name}">🏆 شهادة التقدير</button>`
             : '—';
 
           tbody.innerHTML += `
@@ -444,20 +453,21 @@
               <td>${d.home}</td>
               <td>${d.part}</td>
               <td>${d.beh}</td>
-              <td>${d.total}</td>
+              <td>${totalNum}</td>
               <td>${evaluation}</td>
               <td>${certCell}</td>
             </tr>
           `;
         });
+
         table.style.display = '';
 
-        // تفويض حدث لفتح الشهادة عند الضغط على زر أي صف
+        // تفويض حدث الضغط على زر الشهادة
         table.querySelector('tbody').onclick = (e) => {
           const btn = e.target.closest('.cert-btn');
           if (!btn) return;
-          const studentName = btn.dataset.name || '';
-          openCertificateForStudent(studentName);
+          e.preventDefault();
+          openCertificateForStudent(btn.dataset.name || '');
         };
       }
 
