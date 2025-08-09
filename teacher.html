@@ -341,63 +341,71 @@
         if (doc.exists) span.textContent = doc.data().name;
       }
 
-      async function submitEvaluation() {
-        const classId = document.getElementById('eval-class').value;
-        const studentId = document.getElementById('eval-student').value;
-        const month = document.getElementById('eval-month').value;
-        const year = new Date().getFullYear();
-        const test = parseInt(document.getElementById('input-test').value) || 0;
-        const home = parseInt(document.getElementById('input-home').value) || 0;
-        const part = parseInt(document.getElementById('input-part').value) || 0;
-        const beh  = parseInt(document.getElementById('input-beh').value)  || 0;
-        const total = test + home + part + beh;
+      aasync function submitEvaluation() {
+  const classId = document.getElementById('eval-class').value;
+  const studentId = document.getElementById('eval-student').value;
+  const month = document.getElementById('eval-month').value;
+  const year = new Date().getFullYear();
+  const test = parseInt(document.getElementById('input-test').value) || 0;
+  const home = parseInt(document.getElementById('input-home').value) || 0;
+  const part = parseInt(document.getElementById('input-part').value) || 0;
+  const beh  = parseInt(document.getElementById('input-beh').value)  || 0;
+  const total = test + home + part + beh;
 
-        if (!studentId || !classId || !month) {
-          alert('⚠️ تأكد من إدخال جميع البيانات');
-          return;
-        }
+  if (!studentId || !classId || !month) {
+    alert('⚠️ تأكد من إدخال جميع البيانات');
+    return;
+  }
 
-        // منع التكرار لنفس الشهر/الفصل/الطالب
-        const check = await db.collection('evaluations')
-          .where('classId', '==', classId)
-          .where('studentId', '==', studentId)
-          .where('month', '==', month)
-          .get();
+  const check = await db.collection('evaluations')
+    .where('classId', '==', classId)
+    .where('studentId', '==', studentId)
+    .where('month', '==', month)
+    .get();
 
-        if (!check.empty) {
-          alert('⚠️ تم إدخال تقييم لهذا الطالب في هذا الشهر بالفعل');
-          return;
-        }
+  if (!check.empty) {
+    alert('⚠️ تم إدخال تقييم لهذا الطالب في هذا الشهر بالفعل');
+    return;
+  }
 
-        const studentDoc = await db.collection('students').doc(studentId).get();
-        const name = studentDoc.exists ? studentDoc.data().name : 'طالب';
+  const studentDoc = await db.collection('students').doc(studentId).get();
+  const name = studentDoc.exists ? studentDoc.data().name : 'طالب';
 
-        await db.collection('evaluations').add({
-          classId, studentId, teacher: currentTeacherId,
-          name, test, home, part, beh, total, month, year
-        });
+  await db.collection('evaluations').add({
+    classId, studentId, teacher: currentTeacherId,
+    name, test, home, part, beh, total, month, year
+  });
 
-        await showEvaluationSummary();
-        alert('✔️ تم حفظ التقييم');
+  await showEvaluationSummary();
+  alert('✔️ تم حفظ التقييم');
 
-        // فتح صفحة الشهادة عند الدرجة الكاملة
-        if (total === 40) {
-          const openIt = confirm('🎉 الطالب حصل على الدرجة النهائية (40/40) — فتح شهادة التقدير؟');
-          if (openIt) {
-            const cls = await db.collection('classes').doc(classId).get();
-            const cdata = cls.data();
-            const classText = `${cdata.grade} - ${cdata.system} - ${cdata.section}`;
-            const tdoc = await db.collection('users').doc(currentTeacherId).get();
-            const tname = tdoc.exists ? (tdoc.data().name || '') : '';
-            const q = new URLSearchParams({
-              name, month, year: String(year),
-              klass: classText,
-              teacher: `أ. ${tname}`
-            });
-            window.open(`certificate.html?${q.toString()}`, '_blank', 'noopener');
-          }
-        }
-      }
+  // لو الدرجة النهائية = 40 يظهر زرار طباعة الشهادة
+  if (total === 40) {
+    const btnContainer = document.createElement('div');
+    btnContainer.style.marginTop = '10px';
+    btnContainer.innerHTML = `
+      <button id="btn-certificate" class="save-btn" style="background:green; color:white">
+        🏆 طباعة شهادة التقدير
+      </button>
+    `;
+    document.getElementById('eval-form').appendChild(btnContainer);
+
+    document.getElementById('btn-certificate').addEventListener('click', async () => {
+      const cls = await db.collection('classes').doc(classId).get();
+      const cdata = cls.data();
+      const classText = `${cdata.grade} - ${cdata.system} - ${cdata.section}`;
+      const tdoc = await db.collection('users').doc(currentTeacherId).get();
+      const tname = tdoc.exists ? (tdoc.data().name || '') : '';
+      const q = new URLSearchParams({
+        name, month, year: String(year),
+        klass: classText,
+        teacher: `أ. ${tname}`
+      });
+      window.open(`certificate.html?${q.toString()}`, '_blank', 'noopener');
+    });
+  }
+}
+
 
       async function showEvaluationSummary() {
         const classId = document.getElementById('eval-class').value;
@@ -451,3 +459,4 @@
   </script>
 </body>
 </html>
+
