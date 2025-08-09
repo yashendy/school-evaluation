@@ -6,31 +6,42 @@
   <title>📝 التقييمات الشهرية للطلاب</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Firebase compat (نفس إصدارك) -->
+  <!-- Firebase compat (بنفس الإصدارات في مشروعك) -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-  <!-- jsPDF -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/3.0.1/jspdf.umd.min.js"></script>
 
-  <!-- إعدادات مشروعك -->
+  <!-- jsPDF + html2canvas (لعرض العربية بشكل صحيح) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/3.0.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <!-- إعدادات Firebase الخاصة بك -->
   <script src="firebase-config.js"></script>
 
   <style>
-    body { margin:0; font-family:'Segoe UI', Tahoma, sans-serif; background:#f4f6fa; }
-    .container { max-width:1000px; margin:40px auto; padding:20px; background:#fff; box-shadow:0 0 10px #d0d4da; border-radius:12px; }
-    h1 { text-align:center; color:#0288d1; margin:6px 0 18px; }
-    label { display:block; margin-top:12px; color:#333; }
-    select,button { width:100%; padding:10px; font-size:16px; margin-top:6px; }
-    .actions { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-top:12px; }
-    .btn { border:none; border-radius:8px; cursor:pointer; }
-    .btn-primary { background:#0288d1; color:#fff; }
-    .btn-secondary { background:#455a64; color:#fff; }
-    .btn-outline { background:#fff; color:#0288d1; border:2px solid #0288d1; }
-    table { width:100%; border-collapse:collapse; margin-top:16px; }
-    th,td { border:1px solid #cfd8dc; padding:8px; text-align:center; font-size:14px; }
-    th { background:#eceff1; }
-    .muted { color:#666; font-size:13px; text-align:center; margin-top:6px; }
+    :root{
+      --primary:#0288d1;
+      --muted:#666;
+      --surface:#fff;
+      --bg:#f4f6fa;
+      --border:#cfd8dc;
+      --head:#eceff1;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:var(--bg)}
+    .container{max-width:1000px;margin:32px auto;padding:20px;background:var(--surface);border-radius:12px;box-shadow:0 3px 14px rgba(0,0,0,.08)}
+    h1{margin:8px 0 18px;color:var(--primary);text-align:center}
+    label{display:block;margin-top:10px;color:#333}
+    select,button{width:100%;padding:10px;font-size:16px;margin-top:6px}
+    .actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:12px}
+    .btn{border:none;border-radius:8px;cursor:pointer}
+    .btn-primary{background:var(--primary);color:#fff}
+    .btn-secondary{background:#455a64;color:#fff}
+    .btn-outline{background:#fff;color:var(--primary);border:2px solid var(--primary)}
+    table{width:100%;border-collapse:collapse;margin-top:16px}
+    th,td{border:1px solid var(--border);padding:8px;text-align:center;font-size:14px}
+    th{background:var(--head)}
+    .muted{color:var(--muted);font-size:13px;text-align:center;margin-top:6px}
   </style>
 </head>
 <body>
@@ -71,22 +82,26 @@
     </table>
   </div>
 
+  <!-- ورقة خفية لبناء محتوى PDF باللغة العربية -->
+  <div id="pdf-sheet" style="direction:rtl;font-family:'Segoe UI',Tahoma,Arial;display:none"></div>
+
   <script>
-    // ===== Firebase =====
+    // ========= Firebase =========
     const auth = firebase.auth();
     const db   = firebase.firestore();
 
     let currentTeacherId = null;
-    let cachedRows = []; // آخر بيانات جدول (لاستخدامها في طباعة PDF النتائج)
+    let cachedRows = []; // آخر بيانات جدول للـPDF
+    let cachedStudents = []; // أسماء الطلبة للفصل الحالي
 
-    // ===== Auth guard + تحميل فصول المعلّم =====
+    // ========= حراسة الدخول + تحميل فصول المعلم =========
     auth.onAuthStateChanged(async user => {
       if (!user) return location.href = 'index.html';
       currentTeacherId = user.uid;
 
-      const doc = await db.collection('users').doc(currentTeacherId).get();
-      const data = doc.data();
-      if (!data || data.type !== 'teacher') {
+      const u = await db.collection('users').doc(currentTeacherId).get();
+      const ud = u.data();
+      if (!ud || ud.type !== 'teacher') {
         alert('❗ ليس لديك صلاحية الوصول لهذه الصفحة');
         await auth.signOut();
         return (location.href = 'index.html');
@@ -98,8 +113,7 @@
       const sel = document.getElementById('class-select');
       sel.innerHTML = '';
       const snap = await db.collection('classes')
-        .where('teacher','==',currentTeacherId)
-        .get();
+        .where('teacher','==',currentTeacherId).get();
 
       if (snap.empty) {
         sel.innerHTML = '<option value="">لا توجد فصول مسندة</option>';
@@ -114,9 +128,9 @@
       });
     }
 
-    // ===== Helpers =====
+    // ========= Helpers =========
     function arabicEval(e) {
-      if (!e || e.test === undefined || e.test === null) return '';
+      if (!e || e.test === undefined || e.test === null || e.test === '') return '';
       if (e.test === 0) return 'غياب';
       if (e.test < 7)  return 'تشجيع من ولي الأمر';
       if (e.total === 40) return 'ممتاز مع الشكر';
@@ -126,23 +140,24 @@
 
     async function fetchLogoAsDataURL(src = 'logo.png') {
       try {
-        const res = await fetch(src);
+        const res = await fetch(src, { mode:'cors' });
         const blob = await res.blob();
         return await new Promise(resolve => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result);
           reader.readAsDataURL(blob);
         });
-      } catch {
-        return null;
-      }
+      } catch { return null; }
     }
 
-    // ===== جلب الطلاب + دمج التقييمات =====
+    function getSelectedClassText(){
+      return document.getElementById('class-select').selectedOptions[0]?.textContent || '';
+    }
+
+    // ========= بحث: عرض طلاب الفصل ودمج الدرجات =========
     async function searchAndRender() {
       const classId = document.getElementById('class-select').value;
       const month   = document.getElementById('month-select').value;
-
       if (!classId || !month) return alert('⚠️ اختر الفصل والشهر');
 
       const tbody = document.getElementById('results-body');
@@ -150,45 +165,38 @@
       tbody.innerHTML = '<tr><td colspan="7">جاري التحميل...</td></tr>';
       table.style.display = 'table';
 
-      // 1) طلاب الفصل
-      const studentsSnap = await db.collection('students')
-        .where('classId','==', classId)
-        .orderBy('name')
-        .get();
+      // 1) طلاب الفصل (مجموعة students بحقل classId و name)
+      const stSnap = await db.collection('students').where('classId','==',classId).get();
+      cachedStudents = [];
+      stSnap.forEach(s => cachedStudents.push({ id:s.id, name:s.data().name || '' }));
+      // رتب بالأبجدي
+      cachedStudents.sort((a,b)=>a.name.localeCompare(b.name, 'ar'));
 
-      // 2) تقييمات الشهر المختار
-      const evalSnap = await db.collection('evaluations')
+      // 2) تقييمات الشهر
+      const evSnap = await db.collection('evaluations')
         .where('teacher','==', currentTeacherId)
         .where('classId','==', classId)
         .where('month','==', month)
         .get();
-
-      // نعمل خريطة للتقييمات بالstudentId أو بالاسم كبديل
       const evalMap = new Map();
-      evalSnap.forEach(d => {
+      evSnap.forEach(d => {
         const e = d.data();
-        const key = e.studentId || (e.name || '').trim();
+        const key = e.studentId || (e.name||'').trim();
         evalMap.set(key, e);
       });
 
-      // بناء الصفوف
-      const rows = [];
+      // 3) بناء الجدول
+      cachedRows = [];
       tbody.innerHTML = '';
-      if (studentsSnap.empty) {
+      if (!cachedStudents.length){
         tbody.innerHTML = '<tr><td colspan="7">لا يوجد طلاب لهذا الفصل</td></tr>';
-        cachedRows = [];
         return;
       }
 
-      studentsSnap.forEach(s => {
-        const st = s.data();
-        const key = s.id;
-        // اقرأ التقييم إن وُجد (أولوية studentId ثم الاسم)
-        let e = evalMap.get(key);
-        if (!e) e = evalMap.get((st.name || '').trim());
-
+      cachedStudents.forEach(st => {
+        const e = evalMap.get(st.id) || evalMap.get((st.name||'').trim());
         const row = {
-          name: st.name || '',
+          name: st.name,
           test: e ? e.test : '',
           home: e ? e.home : '',
           part: e ? e.part : '',
@@ -196,150 +204,143 @@
           total: e ? e.total : '',
           grade: e ? arabicEval(e) : ''
         };
-        rows.push(row);
+        cachedRows.push(row);
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td>${row.name}</td>
-          <td>${row.test === 0 ? '-' : row.test}</td>
-          <td>${row.test === 0 ? '-' : row.home}</td>
-          <td>${row.test === 0 ? '-' : row.part}</td>
-          <td>${row.test === 0 ? '-' : row.beh}</td>
-          <td>${row.test === 0 ? '-' : row.total}</td>
-          <td>${row.grade}</td>
-        `;
+          <td style="text-align:right">${row.name}</td>
+          <td>${row.test === 0 ? '-' : (row.test ?? '')}</td>
+          <td>${row.test === 0 ? '-' : (row.home ?? '')}</td>
+          <td>${row.test === 0 ? '-' : (row.part ?? '')}</td>
+          <td>${row.test === 0 ? '-' : (row.beh  ?? '')}</td>
+          <td>${row.test === 0 ? '-' : (row.total?? '')}</td>
+          <td>${row.grade}</td>`;
         tbody.appendChild(tr);
       });
-
-      cachedRows = rows; // نخزنها للـ PDF النتائج
     }
 
-    // ===== رأس PDF (شعار يمين + اسم الأكاديمية وسط + السنة) =====
-    async function drawHeader(pdf, { titleCenter, yearText }) {
-      const pageW = pdf.internal.pageSize.getWidth();
-      // شعار
-      const logo = await fetchLogoAsDataURL('logo.png');
-      if (logo) {
-        pdf.addImage(logo, 'PNG', pageW - 40 - 70, 30, 70, 70); // يمين أعلى
-      }
-      // عنوان
-      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(16);
-      pdf.text(titleCenter, pageW/2, 60, { align:'center' });
-      // السنة
-      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(12);
-      pdf.text(yearText, pageW/2, 80, { align:'center' });
-
-      // خط فاصل
-      pdf.setDrawColor(180);
-      pdf.line(40, 100, pageW - 40, 100);
+    // ========= بناء رأس HTML لطباعة PDF بالعربي =========
+    function buildHeaderHTML({year, classText, month, showMonth=true, subtitle=''}) {
+      return `
+        <div style="position:relative; padding:24px 24px 4px 24px; font-family:'Segoe UI',Tahoma,Arial;">
+          <img id="pdf-logo" src="" alt="logo" style="position:absolute; right:24px; top:8px; width:70px; height:auto;">
+          <div style="text-align:center; font-weight:700; font-size:18px; margin-bottom:4px;">
+            معهد الدراسات الإدارية والفنية
+          </div>
+          <div style="text-align:center; font-size:13px; color:#333;">السنة: ${year}</div>
+          <hr style="margin:12px 0;border:none;border-top:1px solid #cfd8dc;">
+          <div style="font-size:12px; color:#333; margin-bottom:4px;">
+            الفصل: ${classText} ${showMonth ? `&nbsp;&nbsp;|&nbsp;&nbsp; الشهر: ${month}` : ''}
+          </div>
+          ${subtitle ? `<div style="font-size:12px;margin-bottom:6px;color:#555">${subtitle}</div>` : ''}
+        </div>
+      `;
     }
 
-    // ===== PDF: النتائج حسب الجدول الحالي =====
+    function buildTableHTML(rows, {blank=false}) {
+      const head = `
+        <thead style="background:#eceff1;">
+          <tr>
+            <th>اسم الطالب</th>
+            <th>اختبار</th>
+            <th>واجب</th>
+            <th>مشاركة</th>
+            <th>سلوك</th>
+            <th>المجموع</th>
+            <th>التقدير</th>
+          </tr>
+        </thead>`;
+      const body = rows.map(r => `
+        <tr>
+          <td style="text-align:right">${r.name ?? ''}</td>
+          <td>${blank ? '' : (r.test === 0 ? '-' : (r.test ?? ''))}</td>
+          <td>${blank ? '' : (r.test === 0 ? '-' : (r.home ?? ''))}</td>
+          <td>${blank ? '' : (r.test === 0 ? '-' : (r.part ?? ''))}</td>
+          <td>${blank ? '' : (r.test === 0 ? '-' : (r.beh  ?? ''))}</td>
+          <td>${blank ? '' : (r.test === 0 ? '-' : (r.total?? ''))}</td>
+          <td>${blank ? '' : (r.grade ?? ''))}</td>
+        </tr>`).join('');
+      return `
+        <table style="width:100%; border-collapse:collapse; font-size:12px; margin:8px 24px 24px">
+          ${head}
+          <tbody>${body}</tbody>
+        </table>
+        <style>
+          #pdf-sheet table, #pdf-sheet th, #pdf-sheet td { border:1px solid #cfd8dc; }
+          #pdf-sheet th, #pdf-sheet td { padding:6px; text-align:center; }
+          #pdf-sheet th { font-weight:700; }
+        </style>
+      `;
+    }
+
+    async function setLogoForPDF() {
+      const dataURL = await fetchLogoAsDataURL('logo.png');
+      const img = document.getElementById('pdf-logo');
+      if (img && dataURL) img.src = dataURL;
+    }
+
+    // ========= PDF النتائج =========
     async function exportFilledPDF() {
       if (!cachedRows.length) return alert('اعمل بحث أولاً لعرض الجدول');
 
       const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF({ unit:'pt', format:'a4' });
-      const pageW = pdf.internal.pageSize.getWidth();
-      const year  = new Date().getFullYear();
+      const pdf  = new jsPDF({ unit:'pt', format:'a4' });
+      const year = new Date().getFullYear();
       const month = document.getElementById('month-select').value;
+      const classText = getSelectedClassText();
 
-      await drawHeader(pdf, {
-        titleCenter: 'معهد الدراسات الإدارية والفنية',
-        yearText: `السنة: ${year}`
+      const sheet = document.getElementById('pdf-sheet');
+      sheet.innerHTML = `
+        ${buildHeaderHTML({year, classText, month})}
+        ${buildTableHTML(cachedRows, {blank:false})}
+      `;
+      await setLogoForPDF();
+      sheet.style.display = 'block';
+
+      await pdf.html(sheet, {
+        margin: [20, 20, 20, 20],
+        html2canvas: { scale: 2, useCORS: true },
+        autoPaging: 'text',
+        callback: (doc) => {
+          doc.save(\`نتيجة_\${classText}_\${month}_\${year}.pdf\`);
+          sheet.style.display = 'none';
+        }
       });
-
-      // معلومات إضافية صغيرة
-      pdf.setFontSize(11);
-      const classText = document.getElementById('class-select').selectedOptions[0]?.textContent || '';
-      pdf.text(`الفصل: ${classText}`, 40, 118);
-      pdf.text(`الشهر: ${month}`, 40, 136);
-
-      // رؤوس الأعمدة
-      let y = 160;
-      const cols = [
-        { title:'اسم الطالب', x:40 },
-        { title:'اختبار',     x:250 },
-        { title:'واجب',       x:300 },
-        { title:'مشاركة',     x:350 },
-        { title:'سلوك',       x:410 },
-        { title:'المجموع',    x:460 },
-        { title:'التقدير',    x:520 }
-      ];
-      pdf.setFontSize(11);
-      cols.forEach(c => pdf.text(c.title, c.x, y));
-      y += 10; pdf.line(40, y, pageW - 40, y); y += 16;
-
-      // صفوف الجدول
-      cachedRows.forEach(r => {
-        const absent = r.test === 0;
-        pdf.text(String(r.name || ''), 40, y);
-        pdf.text(absent ? '-' : String(r.test ?? ''), 250, y);
-        pdf.text(absent ? '-' : String(r.home ?? ''), 300, y);
-        pdf.text(absent ? '-' : String(r.part ?? ''), 350, y);
-        pdf.text(absent ? '-' : String(r.beh  ?? ''), 410, y);
-        pdf.text(absent ? '-' : String(r.total?? ''), 460, y);
-        pdf.text(String(r.grade || ''), 520, y);
-
-        y += 18;
-        if (y > 790) { pdf.addPage(); y = 60; }
-      });
-
-      pdf.save(`نتيجة_${classText}_${month}_${year}.pdf`);
     }
 
-    // ===== PDF: كشف فارغ للتعبئة اليدوية =====
+    // ========= PDF فارغ للتعبئة =========
     async function exportBlankPDF() {
-      const classId = document.getElementById('class-select').value;
-      if (!classId) return alert('اختر الفصل أولاً');
-
-      // نضمن عندنا قائمة الطلاب (لو المستخدم ما ضغطش بحث)
+      // لو المستخدم ما ضغطش بحث، نجيب الطلبة أولاً
       if (!cachedRows.length) await searchAndRender();
       if (!cachedRows.length) return;
 
       const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF({ unit:'pt', format:'a4' });
-      const pageW = pdf.internal.pageSize.getWidth();
-      const year  = new Date().getFullYear();
+      const pdf  = new jsPDF({ unit:'pt', format:'a4' });
+      const year = new Date().getFullYear();
+      const classText = getSelectedClassText();
 
-      await drawHeader(pdf, {
-        titleCenter: 'معهد الدراسات الإدارية والفنية',
-        yearText: `السنة: ${year}`
+      const namesOnly = cachedRows.map(r => ({ name: r.name }));
+
+      const sheet = document.getElementById('pdf-sheet');
+      sheet.innerHTML = `
+        ${buildHeaderHTML({year, classText, month:'', showMonth:false, subtitle:'كشف درجات فارغ للتعبئة اليدوية'})}
+        ${buildTableHTML(namesOnly, {blank:true})}
+      `;
+      await setLogoForPDF();
+      sheet.style.display = 'block';
+
+      await pdf.html(sheet, {
+        margin: [20, 20, 20, 20],
+        html2canvas: { scale: 2, useCORS: true },
+        autoPaging: 'text',
+        callback: (doc) => {
+          doc.save(\`كشف_فارغ_\${classText}_\${year}.pdf\`);
+          sheet.style.display = 'none';
+        }
       });
-
-      const classText = document.getElementById('class-select').selectedOptions[0]?.textContent || '';
-      pdf.setFontSize(11);
-      pdf.text(`الفصل: ${classText} — كشف درجات (فارغ للتعبئة اليدوية)`, 40, 118);
-
-      // رؤوس الأعمدة (نفس الأعمدة لكن بدون تقييم مسبق)
-      let y = 150;
-      const cols = [
-        { title:'اسم الطالب', x:40 },
-        { title:'اختبار',     x:250 },
-        { title:'واجب',       x:300 },
-        { title:'مشاركة',     x:350 },
-        { title:'سلوك',       x:410 },
-        { title:'المجموع',    x:460 },
-        { title:'التقدير',    x:520 }
-      ];
-      pdf.setFontSize(11);
-      cols.forEach(c => pdf.text(c.title, c.x, y));
-      y += 10; pdf.line(40, y, pageW - 40, y); y += 16;
-
-      // الصفوف: أسماء فقط والباقي فاضي
-      cachedRows.forEach(r => {
-        pdf.text(String(r.name || ''), 40, y);
-        // خانات فاضية مع خطوط خفيفة لتسهيل الكتابة
-        const xs = [240, 290, 340, 400, 450, 510];
-        xs.forEach(x => { pdf.line(x, y+4, x+40, y+4); }); // سطر صغير للكتابة
-        y += 18;
-        if (y > 790) { pdf.addPage(); y = 60; }
-      });
-
-      pdf.save(`كشف_فارغ_${classText}_${year}.pdf`);
     }
 
-    // ===== events =====
+    // ========= Events =========
     document.getElementById('search-btn').addEventListener('click', searchAndRender);
     document.getElementById('pdf-filled-btn').addEventListener('click', exportFilledPDF);
     document.getElementById('pdf-blank-btn').addEventListener('click', exportBlankPDF);
