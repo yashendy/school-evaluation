@@ -160,7 +160,7 @@
       const url = 'Cairo-Regular.ttf'; // ضعِ الملف هنا
       const resp = await fetch(url);
       if (!resp.ok) {
-        alert('⚠️ لم يتم العثور على ملف الخط Cairo-Regular.ttf داخل مجلد fonts/.');
+        alert('⚠️ لم يتم العثور على ملف الخط Cairo-Regular.ttf داخل مجلد .');
         return;
       }
       const buf = await resp.arrayBuffer();
@@ -372,4 +372,5 @@
   </script>
 </body>
 </html>
+
 
