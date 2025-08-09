@@ -6,26 +6,25 @@
   <title>📝 التقييمات الشهرية للطلاب</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Firebase compat (بنفس الإصدارات في مشروعك) -->
+  <!-- Firebase compat -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 
-  <!-- jsPDF + html2canvas (لعرض العربية بشكل صحيح) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/3.0.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <!-- jsPDF + AutoTable (للجداول الفيكتور) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.3/jspdf.plugin.autotable.min.js"></script>
+
+  <!-- مكتبة تشكيل العربية (للعرض الصحيح داخل PDF) -->
+  <script src="https://cdn.jsdelivr.net/npm/arabicjs@3.2.0/dist/arabic.min.js"></script>
 
   <!-- إعدادات Firebase الخاصة بك -->
   <script src="firebase-config.js"></script>
 
   <style>
     :root{
-      --primary:#0288d1;
-      --muted:#666;
-      --surface:#fff;
-      --bg:#f4f6fa;
-      --border:#cfd8dc;
-      --head:#eceff1;
+      --primary:#0288d1; --muted:#666; --surface:#fff; --bg:#f4f6fa;
+      --border:#cfd8dc; --head:#eceff1;
     }
     *{box-sizing:border-box}
     body{margin:0;font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:var(--bg)}
@@ -82,19 +81,16 @@
     </table>
   </div>
 
-  <!-- ورقة خفية لبناء محتوى PDF باللغة العربية -->
-  <div id="pdf-sheet" style="direction:rtl;font-family:'Segoe UI',Tahoma,Arial;display:none"></div>
-
   <script>
-    // ========= Firebase =========
+    // ================== Firebase ==================
     const auth = firebase.auth();
     const db   = firebase.firestore();
 
     let currentTeacherId = null;
-    let cachedRows = []; // آخر بيانات جدول للـPDF
-    let cachedStudents = []; // أسماء الطلبة للفصل الحالي
+    let cachedRows = [];      // بيانات الجدول الأخير
+    let cachedStudents = [];  // أسماء طلبة الفصل
 
-    // ========= حراسة الدخول + تحميل فصول المعلم =========
+    // ================== Auth + تحميل فصول المعلم ==================
     auth.onAuthStateChanged(async user => {
       if (!user) return location.href = 'index.html';
       currentTeacherId = user.uid;
@@ -128,9 +124,9 @@
       });
     }
 
-    // ========= Helpers =========
+    // ================== Helpers ==================
     function arabicEval(e) {
-      if (!e || e.test === undefined || e.test === null || e.test === '') return '';
+      if (e == null || e.test == null || e.test === '') return '';
       if (e.test === 0) return 'غياب';
       if (e.test < 7)  return 'تشجيع من ولي الأمر';
       if (e.total === 40) return 'ممتاز مع الشكر';
@@ -138,23 +134,48 @@
       return 'نرجو من ولي الأمر متابعة الطالب وتشجيعه';
     }
 
-    async function fetchLogoAsDataURL(src = 'logo.png') {
-      try {
-        const res = await fetch(src, { mode:'cors' });
-        const blob = await res.blob();
-        return await new Promise(resolve => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.readAsDataURL(blob);
-        });
-      } catch { return null; }
-    }
-
     function getSelectedClassText(){
       return document.getElementById('class-select').selectedOptions[0]?.textContent || '';
     }
 
-    // ========= بحث: عرض طلاب الفصل ودمج الدرجات =========
+    // تشكيل/تهيئة العربية للنصوص داخل PDF
+    function shapeTxt(str){
+      if (str === 0) return '0';
+      if (str == null) return '';
+      str = String(str);
+      try {
+        if (window.ArabicJS) {
+          // بعض الإصدارات تستخدم shape وأخرى Shape
+          if (typeof ArabicJS.shape === 'function') return ArabicJS.shape(str);
+          if (typeof ArabicJS.Shape === 'function') return ArabicJS.Shape(str);
+        }
+      } catch(e){}
+      return str;
+    }
+
+    // تحميل خط Cairo وإضافته لـ VFS مرة واحدة
+    let fontLoaded = false;
+    async function ensureArabicFont() {
+      if (fontLoaded) return;
+      const url = 'fonts/Cairo-Regular.ttf'; // ضعِ الملف هنا
+      const resp = await fetch(url);
+      if (!resp.ok) {
+        alert('⚠️ لم يتم العثور على ملف الخط Cairo-Regular.ttf داخل مجلد fonts/.');
+        return;
+      }
+      const buf = await resp.arrayBuffer();
+      // نحوله Base64
+      const b64 = btoa(
+        new Uint8Array(buf).reduce((data, byte) => data + String.fromCharCode(byte), '')
+      );
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF(); // مجرد لاستخدام VFS
+      pdf.addFileToVFS('Cairo-Regular.ttf', b64);
+      pdf.addFont('Cairo-Regular.ttf', 'Cairo', 'normal');
+      fontLoaded = true;
+    }
+
+    // ================== بحث: عرض طلاب الفصل ودمج الدرجات ==================
     async function searchAndRender() {
       const classId = document.getElementById('class-select').value;
       const month   = document.getElementById('month-select').value;
@@ -165,11 +186,10 @@
       tbody.innerHTML = '<tr><td colspan="7">جاري التحميل...</td></tr>';
       table.style.display = 'table';
 
-      // 1) طلاب الفصل (مجموعة students بحقل classId و name)
+      // 1) طلاب الفصل
       const stSnap = await db.collection('students').where('classId','==',classId).get();
       cachedStudents = [];
       stSnap.forEach(s => cachedStudents.push({ id:s.id, name:s.data().name || '' }));
-      // رتب بالأبجدي
       cachedStudents.sort((a,b)=>a.name.localeCompare(b.name, 'ar'));
 
       // 2) تقييمات الشهر
@@ -219,128 +239,133 @@
       });
     }
 
-    // ========= بناء رأس HTML لطباعة PDF بالعربي =========
-    function buildHeaderHTML({year, classText, month, showMonth=true, subtitle=''}) {
-      return `
-        <div style="position:relative; padding:24px 24px 4px 24px; font-family:'Segoe UI',Tahoma,Arial;">
-          <img id="pdf-logo" src="" alt="logo" style="position:absolute; right:24px; top:8px; width:70px; height:auto;">
-          <div style="text-align:center; font-weight:700; font-size:18px; margin-bottom:4px;">
-            معهد الدراسات الإدارية والفنية
-          </div>
-          <div style="text-align:center; font-size:13px; color:#333;">السنة: ${year}</div>
-          <hr style="margin:12px 0;border:none;border-top:1px solid #cfd8dc;">
-          <div style="font-size:12px; color:#333; margin-bottom:4px;">
-            الفصل: ${classText} ${showMonth ? `&nbsp;&nbsp;|&nbsp;&nbsp; الشهر: ${month}` : ''}
-          </div>
-          ${subtitle ? `<div style="font-size:12px;margin-bottom:6px;color:#555">${subtitle}</div>` : ''}
-        </div>
-      `;
+    // ================== طباعة PDF فيكتور (AutoTable + خط عربي) ==================
+    async function drawHeader(pdf, {year, classText, month, showMonth=true}) {
+      // الشعار يمين
+      try{
+        const res = await fetch('logo.png'); 
+        const blob = await res.blob();
+        const dataUrl = await new Promise(r=>{const fr=new FileReader(); fr.onload=()=>r(fr.result); fr.readAsDataURL(blob);});
+        const pageW = pdf.internal.pageSize.getWidth();
+        pdf.addImage(dataUrl, 'PNG', pageW-40-70, 24, 70, 70);
+      }catch(e){/* تجاهل لو مش موجود */}
+
+      pdf.setFont('Cairo','normal');
+      pdf.setFontSize(16);
+      pdf.text(shapeTxt('معهد الدراسات الإدارية والفنية'), pdf.internal.pageSize.getWidth()/2, 50, {align:'center'});
+
+      pdf.setFontSize(12);
+      const yearLine = `السنة: ${year}`;
+      pdf.text(shapeTxt(yearLine), pdf.internal.pageSize.getWidth()/2, 70, {align:'center'});
+
+      pdf.setDrawColor(180);
+      pdf.line(40, 84, pdf.internal.pageSize.getWidth()-40, 84);
+
+      pdf.setFontSize(11);
+      let meta = `الفصل: ${classText}`;
+      if (showMonth) meta += `  |  الشهر: ${month}`;
+      pdf.text(shapeTxt(meta), 40, 100, {align:'left'});
     }
 
-    function buildTableHTML(rows, {blank=false}) {
-      const head = `
-        <thead style="background:#eceff1;">
-          <tr>
-            <th>اسم الطالب</th>
-            <th>اختبار</th>
-            <th>واجب</th>
-            <th>مشاركة</th>
-            <th>سلوك</th>
-            <th>المجموع</th>
-            <th>التقدير</th>
-          </tr>
-        </thead>`;
-      const body = rows.map(r => `
-        <tr>
-          <td style="text-align:right">${r.name ?? ''}</td>
-          <td>${blank ? '' : (r.test === 0 ? '-' : (r.test ?? ''))}</td>
-          <td>${blank ? '' : (r.test === 0 ? '-' : (r.home ?? ''))}</td>
-          <td>${blank ? '' : (r.test === 0 ? '-' : (r.part ?? ''))}</td>
-          <td>${blank ? '' : (r.test === 0 ? '-' : (r.beh  ?? ''))}</td>
-          <td>${blank ? '' : (r.test === 0 ? '-' : (r.total?? ''))}</td>
-          <td>${blank ? '' : (r.grade ?? ''))}</td>
-        </tr>`).join('');
-      return `
-        <table style="width:100%; border-collapse:collapse; font-size:12px; margin:8px 24px 24px">
-          ${head}
-          <tbody>${body}</tbody>
-        </table>
-        <style>
-          #pdf-sheet table, #pdf-sheet th, #pdf-sheet td { border:1px solid #cfd8dc; }
-          #pdf-sheet th, #pdf-sheet td { padding:6px; text-align:center; }
-          #pdf-sheet th { font-weight:700; }
-        </style>
-      `;
-    }
-
-    async function setLogoForPDF() {
-      const dataURL = await fetchLogoAsDataURL('logo.png');
-      const img = document.getElementById('pdf-logo');
-      if (img && dataURL) img.src = dataURL;
-    }
-
-    // ========= PDF النتائج =========
     async function exportFilledPDF() {
       if (!cachedRows.length) return alert('اعمل بحث أولاً لعرض الجدول');
+      await ensureArabicFont();
 
       const { jsPDF } = window.jspdf;
-      const pdf  = new jsPDF({ unit:'pt', format:'a4' });
-      const year = new Date().getFullYear();
+      const pdf = new jsPDF({ unit:'pt', format:'a4' });
+      pdf.setFont('Cairo','normal');
+
+      const year  = new Date().getFullYear();
       const month = document.getElementById('month-select').value;
-      const classText = getSelectedClassText();
+      const klass = getSelectedClassText();
 
-      const sheet = document.getElementById('pdf-sheet');
-      sheet.innerHTML = `
-        ${buildHeaderHTML({year, classText, month})}
-        ${buildTableHTML(cachedRows, {blank:false})}
-      `;
-      await setLogoForPDF();
-      sheet.style.display = 'block';
+      await drawHeader(pdf, {year, classText: klass, month, showMonth:true});
 
-      await pdf.html(sheet, {
-        margin: [20, 20, 20, 20],
-        html2canvas: { scale: 2, useCORS: true },
-        autoPaging: 'text',
-        callback: (doc) => {
-          doc.save(\`نتيجة_\${classText}_\${month}_\${year}.pdf\`);
-          sheet.style.display = 'none';
+      // بيانات الجدول
+      const head = [[
+        shapeTxt('اسم الطالب'),
+        shapeTxt('اختبار'),
+        shapeTxt('واجب'),
+        shapeTxt('مشاركة'),
+        shapeTxt('سلوك'),
+        shapeTxt('المجموع'),
+        shapeTxt('التقدير')
+      ]];
+
+      const body = cachedRows.map(r => ([
+        shapeTxt(r.name ?? ''),
+        shapeTxt(r.test === 0 ? '-' : (r.test ?? '')),
+        shapeTxt(r.test === 0 ? '-' : (r.home ?? '')),
+        shapeTxt(r.test === 0 ? '-' : (r.part ?? '')),
+        shapeTxt(r.test === 0 ? '-' : (r.beh  ?? '')),
+        shapeTxt(r.test === 0 ? '-' : (r.total?? '')),
+        shapeTxt(r.grade ?? '')
+      ]));
+
+      pdf.autoTable({
+        startY: 118,
+        head, body,
+        theme: 'grid',
+        styles: { font: 'Cairo', fontStyle: 'normal', halign: 'center' },
+        headStyles: { fillColor: [236,239,241], textColor: 20, halign:'center' },
+        columnStyles: {
+          0: { halign:'right' } // اسم الطالب يمين
+        },
+        didParseCell: (data) => {
+          // تأكيد تشكيل العربية لأي نص مُدخل
+          if (typeof data.cell.text === 'string') {
+            data.cell.text = shapeTxt(data.cell.text);
+          } else if (Array.isArray(data.cell.text)) {
+            data.cell.text = data.cell.text.map(t => shapeTxt(t));
+          }
         }
       });
+
+      pdf.save(`نتيجة_${klass}_${month}_${year}.pdf`);
     }
 
-    // ========= PDF فارغ للتعبئة =========
     async function exportBlankPDF() {
-      // لو المستخدم ما ضغطش بحث، نجيب الطلبة أولاً
       if (!cachedRows.length) await searchAndRender();
       if (!cachedRows.length) return;
+      await ensureArabicFont();
 
       const { jsPDF } = window.jspdf;
-      const pdf  = new jsPDF({ unit:'pt', format:'a4' });
-      const year = new Date().getFullYear();
-      const classText = getSelectedClassText();
+      const pdf = new jsPDF({ unit:'pt', format:'a4' });
+      pdf.setFont('Cairo','normal');
 
-      const namesOnly = cachedRows.map(r => ({ name: r.name }));
+      const year  = new Date().getFullYear();
+      const klass = getSelectedClassText();
 
-      const sheet = document.getElementById('pdf-sheet');
-      sheet.innerHTML = `
-        ${buildHeaderHTML({year, classText, month:'', showMonth:false, subtitle:'كشف درجات فارغ للتعبئة اليدوية'})}
-        ${buildTableHTML(namesOnly, {blank:true})}
-      `;
-      await setLogoForPDF();
-      sheet.style.display = 'block';
+      await drawHeader(pdf, {year, classText: klass, month:'', showMonth:false});
 
-      await pdf.html(sheet, {
-        margin: [20, 20, 20, 20],
-        html2canvas: { scale: 2, useCORS: true },
-        autoPaging: 'text',
-        callback: (doc) => {
-          doc.save(\`كشف_فارغ_\${classText}_\${year}.pdf\`);
-          sheet.style.display = 'none';
-        }
+      const head = [[
+        shapeTxt('اسم الطالب'),
+        shapeTxt('اختبار'),
+        shapeTxt('واجب'),
+        shapeTxt('مشاركة'),
+        shapeTxt('سلوك'),
+        shapeTxt('المجموع'),
+        shapeTxt('التقدير')
+      ]];
+
+      const body = cachedRows.map(r => ([
+        shapeTxt(r.name || ''),
+        '', '', '', '', '', ''
+      ]));
+
+      pdf.autoTable({
+        startY: 118,
+        head, body,
+        theme: 'grid',
+        styles: { font: 'Cairo', fontStyle: 'normal', halign: 'center' },
+        headStyles: { fillColor: [236,239,241], textColor: 20, halign:'center' },
+        columnStyles: { 0: { halign:'right' } }
       });
+
+      pdf.save(`كشف_فارغ_${klass}_${year}.pdf`);
     }
 
-    // ========= Events =========
+    // ================== Events ==================
     document.getElementById('search-btn').addEventListener('click', searchAndRender);
     document.getElementById('pdf-filled-btn').addEventListener('click', exportFilledPDF);
     document.getElementById('pdf-blank-btn').addEventListener('click', exportBlankPDF);
