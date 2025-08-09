@@ -11,12 +11,8 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 
-  <!-- jsPDF + AutoTable -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.3/jspdf.plugin.autotable.min.js"></script>
-
-  <!-- تشكيل العربية -->
-  <script src="https://cdn.jsdelivr.net/npm/arabicjs@3.2.0/dist/arabic.min.js"></script>
+  <!-- html2pdf (jsPDF + html2canvas bundle) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
   <!-- إعدادات Firebase الخاصة بك -->
   <script src="firebase-config.js"></script>
@@ -40,6 +36,18 @@
     th,td{border:1px solid var(--border);padding:8px;text-align:center;font-size:14px}
     th{background:var(--head)}
     .muted{color:var(--muted);font-size:13px;text-align:center;margin-top:6px}
+    /* تنسيق قالب الPDF */
+    #pdf-sheet{direction:rtl;font-family:'Segoe UI',Tahoma,Arial;color:#000}
+    #pdf-sheet .pdf-header{position:relative;padding:24px}
+    #pdf-sheet .pdf-header .logo{position:absolute;right:24px;top:8px;width:70px}
+    #pdf-sheet .pdf-title{font-weight:700;font-size:18px;text-align:center;margin-bottom:4px}
+    #pdf-sheet .pdf-sub{font-size:14px;text-align:center;margin-bottom:4px}
+    #pdf-sheet .pdf-class{font-size:13px;text-align:center;margin-bottom:10px}
+    #pdf-sheet hr{border:none;border-top:1px solid #cfd8dc;margin:10px 24px}
+    #pdf-sheet table{width:calc(100% - 48px);margin:8px 24px 0;border-collapse:collapse;font-size:12px}
+    #pdf-sheet th,#pdf-sheet td{border:1px solid #cfd8dc;padding:6px;text-align:center}
+    #pdf-sheet th{background:#eceff1}
+    #pdf-sheet .pdf-footer{display:flex;justify-content:space-between;margin:14px 24px 10px;font-size:12px}
   </style>
 </head>
 <body>
@@ -84,6 +92,9 @@
     </table>
   </div>
 
+  <!-- قالب PDF (نركّبه ونحوّله إلى PDF) -->
+  <div id="pdf-sheet" style="display:none"></div>
+
   <script>
     // ===== Firebase refs =====
     const auth = firebase.auth();
@@ -95,12 +106,8 @@
 
     // ===== Back button =====
     document.getElementById('back-btn').addEventListener('click', () => {
-      if (history.length > 1) {
-        history.back();
-      } else {
-        // عدّلي المسار لو صفحة المعلم عندك باسم مختلف
-        window.location.href = 'teacher.html';
-      }
+      if (history.length > 1) history.back();
+      else window.location.href = 'teacher.html'; // عدّلي لو اسم صفحة المعلم مختلف
     });
 
     // ===== Auth + load classes =====
@@ -148,42 +155,6 @@
     }
     function getSelectedClassText(){
       return document.getElementById('class-select').selectedOptions[0]?.textContent || '';
-    }
-    function shapeTxt(str){
-      if (str === 0) return '0';
-      if (str == null) return '';
-      str = String(str);
-      try {
-        if (window.ArabicJS) {
-          if (typeof ArabicJS.shape === 'function') return ArabicJS.shape(str);
-          if (typeof ArabicJS.Shape === 'function') return ArabicJS.Shape(str);
-        }
-      } catch(e){}
-      return str;
-    }
-
-    // ===== Load Cairo font (from root) =====
-    let CAIRO_B64 = null;
-    async function ensureArabicFont() {
-      if (CAIRO_B64) return CAIRO_B64;
-      const candidates = [
-        'Cairo-Regular.ttf','./Cairo-Regular.ttf','/Cairo-Regular.ttf','fonts/Cairo-Regular.ttf'
-      ];
-      let resp = null;
-      for (const url of candidates) {
-        try { resp = await fetch(url, { cache: 'no-store' }); if (resp.ok) break; } catch(e){}
-      }
-      if (!resp || !resp.ok) { alert('⚠️ ملف الخط Cairo-Regular.ttf غير موجود.'); return null; }
-      const buf = await resp.arrayBuffer();
-      CAIRO_B64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
-      return CAIRO_B64;
-    }
-    function useCairoOn(pdf) {
-      if (!CAIRO_B64) return false;
-      pdf.addFileToVFS('Cairo-Regular.ttf', CAIRO_B64);
-      pdf.addFont('Cairo-Regular.ttf', 'Cairo', 'normal');
-      pdf.setFont('Cairo', 'normal');
-      return true;
     }
 
     // ===== Search & render table =====
@@ -250,149 +221,112 @@
       });
     }
 
-    // ===== Header (الشعار يمين + النصوص بالوسط كما طُلب) =====
-    async function drawHeader(pdf, {year, classText, month, showMonth=true}) {
-      // logo right
-      try{
-        const res = await fetch('logo.png', {cache:'no-store'});
-        if (res.ok) {
-          const blob = await res.blob();
-          const dataUrl = await new Promise(r=>{const fr=new FileReader(); fr.onload=()=>r(fr.result); fr.readAsDataURL(blob);});
-          const PW = pdf.internal.pageSize.getWidth();
-          pdf.addImage(dataUrl, 'PNG', PW - 90, 20, 70, 70);
-        }
-      }catch(e){}
+    // ===== Build PDF HTML =====
+    function buildPDFHTML({year, month, classText, rows, blank=false}) {
+      const header = `
+        <div class="pdf-header">
+          <img class="logo" src="logo.png" alt="logo">
+          <div class="pdf-title">معهد الدراسات الإدارية والفنية</div>
+          <div class="pdf-sub">نتيجة اختبارات مادة التربية الإسلامية لشهر ${month} لسنة ${year}</div>
+          <div class="pdf-class">${classText}</div>
+        </div>
+        <hr/>
+      `;
 
-      const PW = pdf.internal.pageSize.getWidth();
-      pdf.setFont('Cairo','normal');
+      const head = `
+        <thead>
+          <tr>
+            <th>اسم الطالب</th>
+            <th>اختبار</th>
+            <th>واجب</th>
+            <th>مشاركة</th>
+            <th>سلوك</th>
+            <th>المجموع</th>
+            <th>التقدير</th>
+          </tr>
+        </thead>`;
 
-      // 1) اسم المعهد
-      pdf.setFontSize(18);
-      pdf.text(shapeTxt('معهد الدراسات الإدارية والفنية'), PW/2, 40, { align:'center' });
+      const body = rows.map(r => `
+        <tr>
+          <td style="text-align:right">${r.name ?? ''}</td>
+          <td>${blank ? '' : (r.test === 0 ? '-' : (r.test ?? ''))}</td>
+          <td>${blank ? '' : (r.test === 0 ? '-' : (r.home ?? ''))}</td>
+          <td>${blank ? '' : (r.test === 0 ? '-' : (r.part ?? ''))}</td>
+          <td>${blank ? '' : (r.test === 0 ? '-' : (r.beh  ?? ''))}</td>
+          <td>${blank ? '' : (r.test === 0 ? '-' : (r.total?? ''))}</td>
+          <td>${blank ? '' : (r.grade ?? '')}</td>
+        </tr>`).join('');
 
-      // 2) نتيجة اختبارات مادة التربية الإسلامية لشهر ... لسنة ...
-      pdf.setFontSize(14);
-      const line2 = showMonth
-        ? `نتيجة اختبارات مادة التربية الإسلامية لشهر ${month} لسنة ${year}`
-        : `نتيجة اختبارات مادة التربية الإسلامية لسنة ${year}`;
-      pdf.text(shapeTxt(line2), PW/2, 65, { align:'center' });
+      const table = `
+        <table>
+          ${head}
+          <tbody>${body}</tbody>
+        </table>
+      `;
 
-      // 3) اسم الصف (مثال: الصف الخامس لغات ـ B)
-      pdf.setFontSize(13);
-      pdf.text(shapeTxt(classText), PW/2, 85, { align:'center' });
+      const footer = `
+        <div class="pdf-footer">
+          <div>مع تحيات/ أ.ولاء حماد</div>
+          <div>معلمة المادة/ أ.خديجة خالد جودة</div>
+        </div>
+      `;
 
-      // خط فاصل
-      pdf.setDrawColor(180);
-      pdf.line(40, 95, PW - 40, 95);
+      return header + table + footer;
     }
 
-    // ===== Footer لكل صفحة =====
-    function drawFooterPerPage(pdf){
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const pageWidth  = pdf.internal.pageSize.getWidth();
-      pdf.setFontSize(12);
-      // يمين
-      pdf.text(shapeTxt('مع تحيات/ أ.ولاء حماد'), pageWidth - 40, pageHeight - 20, { align: 'right' });
-      // شمال
-      pdf.text(shapeTxt('معلمة المادة/ أ.خديجة خالد جودة'), 40, pageHeight - 20, { align: 'left' });
-    }
-
-    // ===== PDF: filled =====
     async function exportFilledPDF() {
       if (!cachedRows.length) return alert('اعمل بحث أولاً لعرض الجدول');
-
-      const b64 = await ensureArabicFont();
-      if (!b64) return;
-
-      const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF({ unit:'pt', format:'a4' });
-      useCairoOn(pdf);
-
       const year  = new Date().getFullYear();
       const month = document.getElementById('month-select').value;
       const klass = getSelectedClassText();
 
-      await drawHeader(pdf, {year, classText: klass, month, showMonth:true});
+      const sheet = document.getElementById('pdf-sheet');
+      sheet.innerHTML = buildPDFHTML({year, month, classText: klass, rows: cachedRows, blank:false});
+      sheet.style.display = 'block';
 
-      const head = [[
-        shapeTxt('اسم الطالب'),
-        shapeTxt('اختبار'),
-        shapeTxt('واجب'),
-        shapeTxt('مشاركة'),
-        shapeTxt('سلوك'),
-        shapeTxt('المجموع'),
-        shapeTxt('التقدير')
-      ]];
+      await html2pdf().set({
+        filename: `نتيجة_${klass}_${month}_${year}.pdf`,
+        margin: [10,10,10,10],
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['css','legacy'] }
+      }).from(sheet).save();
 
-      const body = cachedRows.map(r => ([
-        shapeTxt(r.name ?? ''),
-        shapeTxt(r.test === 0 ? '-' : (r.test ?? '')),
-        shapeTxt(r.test === 0 ? '-' : (r.home ?? '')),
-        shapeTxt(r.test === 0 ? '-' : (r.part ?? '')),
-        shapeTxt(r.test === 0 ? '-' : (r.beh  ?? '')),
-        shapeTxt(r.test === 0 ? '-' : (r.total?? '')),
-        shapeTxt(r.grade ?? '')
-      ]));
-
-      pdf.autoTable({
-        startY: 118,
-        head, body,
-        theme: 'grid',
-        styles: { font:'Cairo', halign:'center' },
-        headStyles: { fillColor:[236,239,241], textColor:20, halign:'center' },
-        columnStyles: { 0: { halign:'right' } },
-        didParseCell: (data) => {
-          if (Array.isArray(data.cell.text)) data.cell.text = data.cell.text.map(shapeTxt);
-          else data.cell.text = shapeTxt(data.cell.text);
-        },
-        didDrawPage: () => drawFooterPerPage(pdf)
-      });
-
-      pdf.save(`نتيجة_${klass}_${month}_${year}.pdf`);
+      sheet.style.display = 'none';
     }
 
-    // ===== PDF: blank =====
     async function exportBlankPDF() {
       if (!cachedRows.length) await searchAndRender();
       if (!cachedRows.length) return;
 
-      const b64 = await ensureArabicFont();
-      if (!b64) return;
-
-      const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF({ unit:'pt', format:'a4' });
-      useCairoOn(pdf);
-
       const year  = new Date().getFullYear();
+      const month = ''; // لا نظهر الشهر في الفارغ
       const klass = getSelectedClassText();
 
-      await drawHeader(pdf, {year, classText: klass, month:'', showMonth:false});
+      const namesOnly = cachedRows.map(r => ({ name: r.name }));
+      // نضيف أعمدة فاضية
+      const rows = namesOnly.map(r => ({
+        name: r.name, test:'', home:'', part:'', beh:'', total:'', grade:''
+      }));
 
-      const head = [[
-        shapeTxt('اسم الطالب'),
-        shapeTxt('اختبار'),
-        shapeTxt('واجب'),
-        shapeTxt('مشاركة'),
-        shapeTxt('سلوك'),
-        shapeTxt('المجموع'),
-        shapeTxt('التقدير')
-      ]];
-
-      const body = cachedRows.map(r => ([
-        shapeTxt(r.name || ''), '', '', '', '', '', ''
-      ]));
-
-      pdf.autoTable({
-        startY: 118,
-        head, body,
-        theme: 'grid',
-        styles: { font:'Cairo', halign:'center' },
-        headStyles: { fillColor:[236,239,241], textColor:20, halign:'center' },
-        columnStyles: { 0: { halign:'right' } },
-        didDrawPage: () => drawFooterPerPage(pdf)
+      const sheet = document.getElementById('pdf-sheet');
+      sheet.innerHTML = buildPDFHTML({
+        year, month: (new Date()).toLocaleString('ar', { month: 'long' }),
+        classText: klass, rows, blank:true
       });
+      sheet.style.display = 'block';
 
-      pdf.save(`كشف_فارغ_${klass}_${year}.pdf`);
+      await html2pdf().set({
+        filename: `كشف_فارغ_${klass}_${year}.pdf`,
+        margin: [10,10,10,10],
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['css','legacy'] }
+      }).from(sheet).save();
+
+      sheet.style.display = 'none';
     }
 
     // ===== events =====
