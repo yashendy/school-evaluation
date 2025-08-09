@@ -5,11 +5,11 @@
   <title>لوحة تحكم المعلم</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Firebase وjsPDF -->
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/3.0.1/jspdf.umd.min.js"></script>
+
   <script src="firebase-config.js"></script>
 
   <style>
@@ -17,10 +17,16 @@
     .main-container { display:flex; min-height:100vh; }
     .sidebar { width:220px; background:#add8e6; color:#fff; padding:20px; box-sizing:border-box; }
     .sidebar img { width:100%; margin-bottom:20px; }
-    .sidebar h3 { margin:10px 0; font-size:18px; }
-    .sidebar button { display:block; width:100%; padding:10px; margin-bottom:10px; background:#444; border:none; color:#fff; cursor:pointer; text-align:right; }
+    .sidebar h3 { margin:10px 0; font-size:18px; color:#002b36; }
+    .sidebar button { display:block; width:100%; padding:10px; margin-bottom:10px; background:#444; border:none; color:#fff; cursor:pointer; text-align:right; border-radius:6px; }
     .content { flex:1; background:#fff; padding:20px; box-sizing:border-box; }
-    .save-btn, .delete-btn { padding:5px 10px; margin:5px; cursor:pointer; }
+    .save-btn, .delete-btn { padding:6px 10px; margin:5px; cursor:pointer; border-radius:6px; border:1px solid #ccc; background:#f7f7f7; }
+    table { width:100%; border-collapse:collapse; margin-top:12px; }
+    th,td { border:1px solid #dfe3e7; padding:8px; text-align:center; }
+    th { background:#f2f5f7; }
+    input, select { padding:8px; border:1px solid #d0d7de; border-radius:6px; }
+    .row { display:grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); gap:10px; align-items:center; margin:8px 0; }
+    .muted { color:#666; font-size:13px; margin-top:6px; }
   </style>
 </head>
 <body>
@@ -34,6 +40,7 @@
       <button onclick="window.location.href='evaluations.html'">📄 عرض التقييمات</button>
       <button onclick="auth.signOut().then(()=>location.href='index.html')">🚪 تسجيل الخروج</button>
     </aside>
+
     <main class="content">
       <div id="main-content">جاري التحميل...</div>
     </main>
@@ -41,7 +48,7 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      const auth = firebase.auth();
+      window.auth = firebase.auth();            // متاح للأزرار في الـsidebar
       const db = firebase.firestore();
       let currentTeacherId = null;
 
@@ -72,8 +79,11 @@
         if (sec === 'classes') {
           main.innerHTML = `
             <h2>📘 إدارة الفصول</h2>
-            <div>
-              <select id="c-grade"><option>الصف الأول</option><option>الصف الثاني</option><option>الصف الثالث</option><option>الصف الرابع</option><option>الصف الخامس</option><option>الصف السادس</option></select>
+            <div class="row">
+              <select id="c-grade">
+                <option>الصف الأول</option><option>الصف الثاني</option><option>الصف الثالث</option>
+                <option>الصف الرابع</option><option>الصف الخامس</option><option>الصف السادس</option>
+              </select>
               <select id="c-system"><option>عربي</option><option>لغات</option></select>
               <select id="c-section"><option>A</option><option>B</option><option>C</option><option>D</option></select>
               <button class="save-btn" id="btn-add-class">إضافة فصل</button>
@@ -87,10 +97,11 @@
             loadTeacherClasses();
           });
         }
+
         else if (sec === 'students') {
           main.innerHTML = `
             <h2>👨‍🎓 إضافة طالب</h2>
-            <div>
+            <div class="row">
               <select id="s-grade"></select>
               <select id="s-system"></select>
               <select id="s-section"></select>
@@ -110,24 +121,49 @@
             loadClassDropdowns();
           });
         }
+
         else if (sec === 'tests') {
           main.innerHTML = `
             <h2>🧪 إدخال التقييم</h2>
-            <div>
+            <div class="row">
               <label>الشهر:</label>
-              <select id="eval-month">${["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"].map(m => `<option>${m}</option>`).join('')}</select>
-              <label>الفصل:</label><select id="eval-class" onchange="loadEvalStudents()"></select>
-              <label>الطالب:</label><select id="eval-student" onchange="updateStudentName()"></select>
-              <p>اسم الطالب: <span id="stu-name"></span></p>
-              <label>اختبار:</label><input type="number" id="input-test" min="0" max="10" />
-              <label>واجب:</label><input type="number" id="input-home" min="0" max="10" />
-              <label>مشاركة:</label><input type="number" id="input-part" min="0" max="10" />
-              <label>سلوك:</label><input type="number" id="input-beh" value="10" min="0" max="10" />
+              <select id="eval-month">
+                ${["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"].map(m => `<option>${m}</option>`).join('')}
+              </select>
+
+              <label>الفصل:</label>
+              <select id="eval-class"></select>
+
+              <label>الطالب:</label>
+              <select id="eval-student"></select>
+              <span class="muted">اسم الطالب: <b id="stu-name"></b></span>
+
+              <label>اختبار (0-10):</label><input type="number" id="input-test" min="0" max="10" />
+              <label>واجب (0-10):</label><input type="number" id="input-home" min="0" max="10" />
+              <label>مشاركة (0-10):</label><input type="number" id="input-part" min="0" max="10" />
+              <label>سلوك (0-10):</label><input type="number" id="input-beh" value="10" min="0" max="10" />
               <button class="save-btn" id="btn-save-eval">حفظ التقييم</button>
             </div>
-            <table id="eval-summary-table" style="width:100%; margin-top:20px; display:none;"><thead><tr><th>الاسم</th><th>اختبار</th><th>واجب</th><th>مشاركة</th><th>سلوك</th><th>المجموع</th></tr></thead><tbody></tbody></table>`;
+
+            <h3 style="margin-top:16px">✅ تم إدخال التقييم لهؤلاء الطلاب (للفصل/الشهر الحاليين)</h3>
+            <table id="eval-summary-table" style="width:100%; margin-top:8px; display:none;">
+              <thead>
+                <tr>
+                  <th>الاسم</th><th>اختبار</th><th>واجب</th><th>مشاركة</th>
+                  <th>سلوك</th><th>المجموع</th><th>التقدير</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>`;
           requestAnimationFrame(() => {
+            // نحمّل الفصول ونربط التغييرات
             loadEvalClasses();
+            // تغيير الفصل/الشهر يحدث تحديثًا فوريًا للجدول
+            document.getElementById('eval-class').addEventListener('change', () => {
+              loadEvalStudents().then(showEvaluationSummary);
+            });
+            document.getElementById('eval-month').addEventListener('change', showEvaluationSummary);
+            document.getElementById('eval-student').addEventListener('change', updateStudentName);
             document.getElementById('btn-save-eval').addEventListener('click', submitEvaluation);
           });
         }
@@ -148,7 +184,6 @@
 
         if (!existing.empty) { alert('⚠️ هذا الفصل مضاف مسبقاً'); return; }
         await db.collection('classes').add({ grade, system, section, teacher: currentTeacherId });
-        alert('✔️ تم إضافة الفصل');
         loadTeacherClasses();
       }
 
@@ -165,7 +200,6 @@
 
       async function deleteClass(classId) {
         await db.collection('classes').doc(classId).delete();
-        alert('🗑️ تم حذف الفصل');
         loadTeacherClasses();
       }
 
@@ -191,7 +225,6 @@
         const classId = classSnap.docs[0].id;
         const seat = await generateSeat(gender, religion, classId);
         await db.collection('students').add({ name, gender, religion, seatNumber: seat, classId, teacher: currentTeacherId });
-        alert(`✔️ تم إضافة الطالب ${name} رقم الجلوس: ${seat}`);
         displayStudents(classId);
       }
 
@@ -221,7 +254,7 @@
         displayStudents(classId);
         const list = document.getElementById('students-list');
         list.innerHTML = '';
-        const studentsSnap = await db.collection('students').where('classId','==',classId).get();
+        const studentsSnap = await db.collection('students').where('classId','==',classId).orderBy('seatNumber').get();
         studentsSnap.forEach(doc => {
           const opt = document.createElement('option');
           opt.value = doc.data().name;
@@ -240,133 +273,130 @@
         });
       }
 
-     // ——— دوال التقييم ———
-async function loadEvalClasses() {
-  const sel = document.getElementById('eval-class');
-  sel.innerHTML = '';
-  const snap = await db.collection('classes').where('teacher', '==', currentTeacherId).get();
-  snap.forEach(doc => {
-    const opt = document.createElement('option');
-    const d = doc.data();
-    opt.value = doc.id;
-    opt.textContent = `${d.grade} - ${d.system} - ${d.section}`;
-    sel.appendChild(opt);
-  });
-  if (snap.docs.length) loadEvalStudents();
-}
+      // ——— دوال التقييم ———
+      async function loadEvalClasses() {
+        const sel = document.getElementById('eval-class');
+        sel.innerHTML = '';
+        const snap = await db.collection('classes').where('teacher', '==', currentTeacherId).get();
+        snap.forEach(doc => {
+          const opt = document.createElement('option');
+          const d = doc.data();
+          opt.value = doc.id;
+          opt.textContent = `${d.grade} - ${d.system} - ${d.section}`;
+          sel.appendChild(opt);
+        });
+        if (snap.docs.length) {
+          await loadEvalStudents();
+          await showEvaluationSummary(); // أول عرض للجدول
+        }
+      }
 
-async function loadEvalStudents() {
-  const classId = document.getElementById('eval-class').value;
-  const sel = document.getElementById('eval-student');
-  sel.innerHTML = '';
-  const snap = await db.collection('students').where('classId', '==', classId).orderBy('seatNumber').get();
-  snap.forEach(doc => {
-    const opt = document.createElement('option');
-    opt.value = doc.id;
-    opt.textContent = doc.data().name;
-    sel.appendChild(opt);
-  });
-  updateStudentName();
-}
+      async function loadEvalStudents() {
+        const classId = document.getElementById('eval-class').value;
+        const sel = document.getElementById('eval-student');
+        sel.innerHTML = '';
+        const snap = await db.collection('students').where('classId', '==', classId).orderBy('seatNumber').get();
+        snap.forEach(doc => {
+          const opt = document.createElement('option');
+          opt.value = doc.id;
+          opt.textContent = doc.data().name;
+          sel.appendChild(opt);
+        });
+        updateStudentName();
+      }
 
-async function updateStudentName() {
-  const studentId = document.getElementById('eval-student').value;
-  const span = document.getElementById('stu-name');
-  if (!studentId) return span.textContent = '';
-  const doc = await db.collection('students').doc(studentId).get();
-  if (doc.exists) span.textContent = doc.data().name;
-}
+      async function updateStudentName() {
+        const studentId = document.getElementById('eval-student').value;
+        const span = document.getElementById('stu-name');
+        if (!studentId) return span.textContent = '';
+        const doc = await db.collection('students').doc(studentId).get();
+        if (doc.exists) span.textContent = doc.data().name;
+      }
 
-async function submitEvaluation() {
-  const classId = document.getElementById('eval-class').value;
-  const studentId = document.getElementById('eval-student').value;
-  const month = document.getElementById('eval-month').value;
-  const year = new Date().getFullYear();
-  const test = parseInt(document.getElementById('input-test').value) || 0;
-  const home = parseInt(document.getElementById('input-home').value) || 0;
-  const part = parseInt(document.getElementById('input-part').value) || 0;
-  const beh = parseInt(document.getElementById('input-beh').value) || 0;
-  const total = test + home + part + beh;
+      async function submitEvaluation() {
+        const classId = document.getElementById('eval-class').value;
+        const studentId = document.getElementById('eval-student').value;
+        const month = document.getElementById('eval-month').value;
+        const year = new Date().getFullYear();
+        const test = parseInt(document.getElementById('input-test').value) || 0;
+        const home = parseInt(document.getElementById('input-home').value) || 0;
+        const part = parseInt(document.getElementById('input-part').value) || 0;
+        const beh = parseInt(document.getElementById('input-beh').value) || 0;
+        const total = test + home + part + beh;
 
-  if (!studentId || !classId || !month) {
-    alert('⚠️ تأكد من إدخال جميع البيانات');
-    return;
-  }
+        if (!studentId || !classId || !month) {
+          alert('⚠️ تأكد من إدخال جميع البيانات');
+          return;
+        }
 
-  const check = await db.collection('evaluations')
-    .where('classId', '==', classId)
-    .where('studentId', '==', studentId)
-    .where('month', '==', month)
-    .get();
+        // منع التكرار لنفس الشهر/الفصل/الطالب
+        const check = await db.collection('evaluations')
+          .where('classId', '==', classId)
+          .where('studentId', '==', studentId)
+          .where('month', '==', month)
+          .get();
 
-  if (!check.empty) {
-    alert('⚠️ تم التقييم لهذا الشهر');
-    return;
-  }
+        if (!check.empty) {
+          alert('⚠️ تم إدخال تقييم لهذا الطالب في هذا الشهر بالفعل');
+          return;
+        }
 
-  const studentDoc = await db.collection('students').doc(studentId).get();
-  const name = studentDoc.exists ? studentDoc.data().name : 'طالب';
+        const studentDoc = await db.collection('students').doc(studentId).get();
+        const name = studentDoc.exists ? studentDoc.data().name : 'طالب';
 
-  await db.collection('evaluations').add({
-    classId, studentId, teacher: currentTeacherId,
-    name, test, home, part, beh, total, month, year
-  });
+        await db.collection('evaluations').add({
+          classId, studentId, teacher: currentTeacherId,
+          name, test, home, part, beh, total, month, year
+        });
 
-  alert('✔️ التقييم محفوظ بنجاح');
-  showEvaluationSummary();
-}
+        // تحديث الجدول فورًا
+        await showEvaluationSummary();
+        alert('✔️ تم حفظ التقييم وإضافته في القائمة أسفلًا');
+      }
 
-async function showEvaluationSummary() {
-  const classId = document.getElementById('eval-class').value;
-  const month = document.getElementById('eval-month').value;
-  const table = document.getElementById('eval-summary-table');
-  const tbody = table.querySelector('tbody');
-  tbody.innerHTML = '';
+      async function showEvaluationSummary() {
+        const classId = document.getElementById('eval-class').value;
+        const month = document.getElementById('eval-month').value;
+        const table = document.getElementById('eval-summary-table');
+        const tbody = table.querySelector('tbody');
+        tbody.innerHTML = '';
 
-  const snap = await db.collection('evaluations')
-    .where('classId', '==', classId)
-    .where('month', '==', month)
-    .get();
+        if (!classId || !month) { table.style.display = 'none'; return; }
 
-  if (snap.empty) {
-    table.style.display = 'none';
-    return;
-  }
+        const snap = await db.collection('evaluations')
+          .where('classId', '==', classId)
+          .where('month', '==', month)
+          .orderBy('name')
+          .get();
 
-  snap.forEach(doc => {
-    const d = doc.data();
+        if (snap.empty) {
+          table.style.display = 'none';
+          return;
+        }
 
-    const testMark = d.test === 0 ? 'غ' : d.test;
-    let evaluation = '';
+        snap.forEach(doc => {
+          const d = doc.data();
+          const testMark = d.test === 0 ? 'غ' : d.test;
+          let evaluation = '';
+          if (d.test === 0) evaluation = 'غياب';
+          else if (d.total === 40) evaluation = 'ممتاز مع الشكر';
+          else if (d.total >= 36) evaluation = 'ممتاز';
+          else evaluation = 'يرجى تشجيع الطفل لرفع مستواه';
 
-    if (d.test === 0) {
-      evaluation = 'غياب';
-    } else if (d.total === 40) {
-      evaluation = 'ممتاز مع الشكر';
-    } else if (d.total < 40) {
-      evaluation = 'يرجى تشجيع الطفل لرفع مستواه';
-    }
-
-    tbody.innerHTML += `
-      <tr>
-        <td>${d.name}</td>
-        <td>${testMark}</td>
-        <td>${d.home}</td>
-        <td>${d.part}</td>
-        <td>${d.beh}</td>
-        <td>${d.total}</td>
-        <td>${evaluation}</td>
-      </tr>`;
-  });
+          tbody.innerHTML += `
+            <tr>
+              <td style="text-align:right">${d.name}</td>
+              <td>${testMark}</td>
+              <td>${d.home}</td>
+              <td>${d.part}</td>
+              <td>${d.beh}</td>
+              <td>${d.total}</td>
+              <td>${evaluation}</td>
+            </tr>`;
+        });
         table.style.display = '';
       }
     });
   </script>
 </body>
 </html>
-
-
-
-
-
-
