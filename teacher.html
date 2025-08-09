@@ -27,13 +27,27 @@
     input, select { padding:8px; border:1px solid #d0d7de; border-radius:6px; }
     .row { display:grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); gap:10px; align-items:center; margin:8px 0; }
     .muted { color:#666; font-size:13px; margin-top:6px; }
+
+    /* تنسيق قسم إدخال التقييم */
+    .form-grid{
+      display:grid;
+      grid-template-columns: 160px 1fr; /* عمود لليبل + عمود للحقل */
+      gap:10px 12px;
+      align-items:center;
+      max-width:720px;
+    }
+    .form-grid label{ justify-self:end; color:#222; }
+    .form-grid input,.form-grid select{
+      width:100%; padding:8px; border:1px solid #d0d7de; border-radius:6px;
+    }
+    .form-grid .full{ grid-column:1 / -1; }
   </style>
 </head>
 <body>
   <div class="main-container">
     <aside class="sidebar">
       <img src="logo.png" alt="Logo">
-      <h3 id="teacher-name">تحميل...</h3>
+      <h3 id="teacher-name">جاري التحميل...</h3>
       <button data-sec="classes">📘 الفصول</button>
       <button data-sec="students">👨‍🎓 الطلاب</button>
       <button data-sec="tests">🧪 إدخال التقييم</button>
@@ -48,7 +62,8 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      window.auth = firebase.auth(); // لاستخدامه في الأزرار
+      // جعل auth متاحًا للأزرار في الـsidebar
+      window.auth = firebase.auth();
       const db = firebase.firestore();
       let currentTeacherId = null;
 
@@ -60,7 +75,8 @@
         const data = userDoc.data();
         if (!data || data.type !== 'teacher') {
           alert('❌ ليس لديك صلاحية الوصول');
-          return auth.signOut().then(() => location.href = 'index.html');
+          await auth.signOut();
+          return (location.href = 'index.html');
         }
 
         document.getElementById('teacher-name').textContent = `أ. ${data.name}`;
@@ -73,7 +89,6 @@
 
       function showSection(sec) {
         const main = document.getElementById('main-content');
-        if (!main) return console.error('عنصر main-content غير موجود');
         main.innerHTML = '';
 
         if (sec === 'classes') {
@@ -125,7 +140,8 @@
         else if (sec === 'tests') {
           main.innerHTML = `
             <h2>🧪 إدخال التقييم</h2>
-            <div class="row">
+
+            <div class="form-grid" id="eval-form">
               <label>الشهر:</label>
               <select id="eval-month">
                 ${["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"].map(m => `<option>${m}</option>`).join('')}
@@ -136,13 +152,25 @@
 
               <label>الطالب:</label>
               <select id="eval-student"></select>
-              <span class="muted">اسم الطالب: <b id="stu-name"></b></span>
 
-              <label>اختبار (0-10):</label><input type="number" id="input-test" min="0" max="10" />
-              <label>واجب (0-10):</label><input type="number" id="input-home" min="0" max="10" />
-              <label>مشاركة (0-10):</label><input type="number" id="input-part" min="0" max="10" />
-              <label>سلوك (0-10):</label><input type="number" id="input-beh" value="10" min="0" max="10" />
-              <button class="save-btn" id="btn-save-eval">حفظ التقييم</button>
+              <label>اسم الطالب:</label>
+              <div id="stu-name" class="muted" style="text-align:right"></div>
+
+              <label>اختبار (0-10):</label>
+              <input type="number" id="input-test" min="0" max="10" />
+
+              <label>واجب (0-10):</label>
+              <input type="number" id="input-home" min="0" max="10" />
+
+              <label>مشاركة (0-10):</label>
+              <input type="number" id="input-part" min="0" max="10" />
+
+              <label>سلوك (0-10):</label>
+              <input type="number" id="input-beh" value="10" min="0" max="10" />
+
+              <div class="full" style="margin-top:8px">
+                <button class="save-btn" id="btn-save-eval" style="width:100%">💾 حفظ التقييم</button>
+              </div>
             </div>
 
             <h3 style="margin-top:16px">✅ تم إدخال التقييم لهؤلاء الطلاب (للفصل/الشهر الحاليين)</h3>
@@ -157,10 +185,8 @@
             </table>`;
           requestAnimationFrame(() => {
             loadEvalClasses();
-            // ربط الأحداث بدل inline onchange
             document.getElementById('eval-class').addEventListener('change', async () => {
-              await loadEvalStudents();
-              await showEvaluationSummary();
+              await loadEvalStudents(); await showEvaluationSummary();
             });
             document.getElementById('eval-month').addEventListener('change', showEvaluationSummary);
             document.getElementById('eval-student').addEventListener('change', updateStudentName);
@@ -247,8 +273,10 @@
       async function loadStudentList() {
         const g = document.getElementById('s-grade').value;
         const s = document.getElementById('s-system').value;
-        const c = document.getElementById('s-section').value; // ✅
-        const snap = await db.collection('classes').where('grade','==',g).where('system','==',s).where('section','==',c).where('teacher','==',currentTeacherId).get();
+        const c = document.getElementById('s-section').value; /* ← كان الخطأ هنا وتم إصلاحه */
+        const snap = await db.collection('classes')
+          .where('grade','==',g).where('system','==',s).where('section','==',c)
+          .where('teacher','==',currentTeacherId).get();
         if (snap.empty) { alert('⚠️ الفصل غير موجود'); return; }
         const classId = snap.docs[0].id;
         displayStudents(classId);
@@ -269,7 +297,7 @@
         const snap = await db.collection('students').where('classId','==',classId).orderBy('seatNumber').get();
         snap.forEach(doc => {
           const d = doc.data();
-          tbody.innerHTML += `<tr><td>${d.name}</td><td>${d.gender==='male'?'ذكر':'أنثى'}</td><td>${d.religion==='muslim'?'مسلم':'مسيحي'}</td><td>${d.seatNumber}</td></tr>`;
+          tbody.innerHTML += `<tr><td style="text-align:right">${d.name}</td><td>${d.gender==='male'?'ذكر':'أنثى'}</td><td>${d.religion==='muslim'?'مسلم':'مسيحي'}</td><td>${d.seatNumber}</td></tr>`;
         });
       }
 
@@ -321,7 +349,7 @@
         const test = parseInt(document.getElementById('input-test').value) || 0;
         const home = parseInt(document.getElementById('input-home').value) || 0;
         const part = parseInt(document.getElementById('input-part').value) || 0;
-        const beh = parseInt(document.getElementById('input-beh').value) || 0;
+        const beh  = parseInt(document.getElementById('input-beh').value)  || 0;
         const total = test + home + part + beh;
 
         if (!studentId || !classId || !month) {
@@ -349,8 +377,26 @@
           name, test, home, part, beh, total, month, year
         });
 
-        await showEvaluationSummary(); // تحديث جدول المُقيّمين
-        alert('✔️ تم حفظ التقييم وإضافته للقائمة أسفلًا');
+        await showEvaluationSummary();
+        alert('✔️ تم حفظ التقييم');
+
+        // فتح صفحة الشهادة عند الدرجة الكاملة
+        if (total === 40) {
+          const openIt = confirm('🎉 الطالب حصل على الدرجة النهائية (40/40) — فتح شهادة التقدير؟');
+          if (openIt) {
+            const cls = await db.collection('classes').doc(classId).get();
+            const cdata = cls.data();
+            const classText = `${cdata.grade} - ${cdata.system} - ${cdata.section}`;
+            const tdoc = await db.collection('users').doc(currentTeacherId).get();
+            const tname = tdoc.exists ? (tdoc.data().name || '') : '';
+            const q = new URLSearchParams({
+              name, month, year: String(year),
+              klass: classText,
+              teacher: `أ. ${tname}`
+            });
+            window.open(`certificate.html?${q.toString()}`, '_blank', 'noopener');
+          }
+        }
       }
 
       async function showEvaluationSummary() {
@@ -396,12 +442,12 @@
         table.style.display = '';
       }
 
-      // ------ اجعل الدوال متاحة عالميًا (لو كان في HTML قديم فيه onchange) ------
+      // اجعل بعض الدوال متاحة عالميًا في حال وجود HTML قديم فيه onchange
       window.loadEvalStudents = loadEvalStudents;
       window.showEvaluationSummary = showEvaluationSummary;
       window.updateStudentName = updateStudentName;
+      window.displayStudents = displayStudents;
     });
   </script>
 </body>
 </html>
-
