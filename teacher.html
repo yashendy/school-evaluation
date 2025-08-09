@@ -51,8 +51,8 @@
       <button data-sec="classes">📘 الفصول</button>
       <button data-sec="students">👨‍🎓 الطلاب</button>
       <button data-sec="tests">🧪 إدخال التقييم</button>
-      <button onclick="auth.signOut().then(()=>location.href='index.html')">🚪 تسجيل الخروج</button>
       <button onclick="window.location.href='evaluations.html'">📄 عرض التقييمات</button>
+      <button onclick="auth.signOut().then(()=>location.href='index.html')">🚪 تسجيل الخروج</button>
     </aside>
 
     <main class="content">
@@ -62,13 +62,13 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      // نجعل auth عالمي للأزرار في الـsidebar
-      window.auth = firebase.auth();
+      // متغيرات Firebase
+      window.auth = firebase.auth(); // لاستخدامه في أزرار الـsidebar
       const db = firebase.firestore();
       let currentTeacherId = null;
 
-      auth.onAuthStateChanged(async user => {
-        if (!user) return location.href = 'index.html';
+      auth.onAuthStateChanged(async (user) => {
+        if (!user) { location.href = 'index.html'; return; }
         currentTeacherId = user.uid;
 
         const userDoc = await db.collection('users').doc(currentTeacherId).get();
@@ -76,13 +76,14 @@
         if (!data || data.type !== 'teacher') {
           alert('❌ ليس لديك صلاحية الوصول');
           await auth.signOut();
-          return (location.href = 'index.html');
+          location.href = 'index.html';
+          return;
         }
 
         document.getElementById('teacher-name').textContent = `أ. ${data.name}`;
-        document.querySelectorAll('.sidebar button[data-sec]').forEach(btn =>
-          btn.addEventListener('click', () => showSection(btn.dataset.sec))
-        );
+        document.querySelectorAll('.sidebar button[data-sec]').forEach((btn) => {
+          btn.addEventListener('click', () => showSection(btn.dataset.sec));
+        });
 
         showSection('classes');
       });
@@ -91,6 +92,7 @@
         const main = document.getElementById('main-content');
         main.innerHTML = '';
 
+        // ------- إدارة الفصول -------
         if (sec === 'classes') {
           main.innerHTML = `
             <h2>📘 إدارة الفصول</h2>
@@ -106,14 +108,17 @@
             <table id="classes-table">
               <thead><tr><th>الصف</th><th>النظام</th><th>القسم</th><th>إجراء</th></tr></thead>
               <tbody></tbody>
-            </table>`;
+            </table>
+          `;
           requestAnimationFrame(() => {
             document.getElementById('btn-add-class').addEventListener('click', addClass);
             loadTeacherClasses();
           });
+          return;
         }
 
-        else if (sec === 'students') {
+        // ------- الطلاب -------
+        if (sec === 'students') {
           main.innerHTML = `
             <h2>👨‍🎓 إضافة طالب</h2>
             <div class="row">
@@ -129,18 +134,23 @@
               <datalist id="students-list"></datalist>
             </div>
             <h3>📋 طلاب الفصل</h3>
-            <table id="students-table"><thead><tr><th>الاسم</th><th>الجنس</th><th>الديانة</th><th>رقم الجلوس</th></tr></thead><tbody></tbody></table>`;
+            <table id="students-table">
+              <thead><tr><th>الاسم</th><th>الجنس</th><th>الديانة</th><th>رقم الجلوس</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          `;
           requestAnimationFrame(() => {
             document.getElementById('btn-add-student').addEventListener('click', addStudent);
             document.getElementById('btn-load-students').addEventListener('click', loadStudentList);
             loadClassDropdowns();
           });
+          return;
         }
 
-        else if (sec === 'tests') {
+        // ------- إدخال التقييم -------
+        if (sec === 'tests') {
           main.innerHTML = `
             <h2>🧪 إدخال التقييم</h2>
-
             <div class="form-grid" id="eval-form">
               <label>الشهر:</label>
               <select id="eval-month">
@@ -172,7 +182,6 @@
                 <button class="save-btn" id="btn-save-eval" style="width:100%">💾 حفظ التقييم</button>
               </div>
 
-              <!-- سيُحقن هنا زر شهادة التقدير عند الحصول على 40 -->
               <div class="full" id="cert-slot"></div>
             </div>
 
@@ -185,20 +194,27 @@
                 </tr>
               </thead>
               <tbody></tbody>
-            </table>`;
+            </table>
+          `;
           requestAnimationFrame(() => {
             loadEvalClasses();
             document.getElementById('eval-class').addEventListener('change', async () => {
-              await loadEvalStudents(); await showEvaluationSummary(); removeCertButton();
+              await loadEvalStudents();
+              await showEvaluationSummary();
+              removeCertButton();
             });
-            document.getElementById('eval-month').addEventListener('change', () => { showEvaluationSummary(); removeCertButton(); });
+            document.getElementById('eval-month').addEventListener('change', () => {
+              showEvaluationSummary();
+              removeCertButton();
+            });
             document.getElementById('eval-student').addEventListener('change', updateStudentName);
             document.getElementById('btn-save-eval').addEventListener('click', submitEvaluation);
           });
+          return;
         }
       }
 
-      // ——— دوال Classes ———
+      /* ====== CLASSES ====== */
       async function addClass() {
         const grade = document.getElementById('c-grade').value;
         const system = document.getElementById('c-system').value;
@@ -221,7 +237,7 @@
         if (!tbody) return;
         tbody.innerHTML = '';
         const snap = await db.collection('classes').where('teacher','==',currentTeacherId).get();
-        snap.forEach(doc => {
+        snap.forEach((doc) => {
           const d = doc.data();
           tbody.innerHTML += `<tr><td>${d.grade}</td><td>${d.system}</td><td>${d.section}</td><td><button class="delete-btn" onclick="deleteClass('${doc.id}')">🗑️ حذف</button></td></tr>`;
         });
@@ -232,11 +248,11 @@
         loadTeacherClasses();
       }
 
-      // ——— دوال Students ———
+      /* ====== STUDENTS ====== */
       async function addStudent() {
         const g = document.getElementById('s-grade').value;
         const s = document.getElementById('s-system').value;
-        const c = document.getElementById('s-section').value; /* ← تم إصلاح الخطأ هنا */
+        const c = document.getElementById('s-section').value;
         const name = document.getElementById('s-name').value.trim();
         const gender = document.getElementById('s-gender').value;
         const religion = document.getElementById('s-religion').value;
@@ -278,15 +294,15 @@
         const s = document.getElementById('s-system').value;
         const c = document.getElementById('s-section').value;
         const snap = await db.collection('classes')
-          .where('grade','==',g).where('system','==',s).where('section','==',c)
-          .where('teacher','==',currentTeacherId).get();
+          .where('grade','==',g).where('system','==',s).where('section','==',c).where('teacher','==',currentTeacherId).get();
         if (snap.empty) { alert('⚠️ الفصل غير موجود'); return; }
         const classId = snap.docs[0].id;
         displayStudents(classId);
+
         const list = document.getElementById('students-list');
         list.innerHTML = '';
         const studentsSnap = await db.collection('students').where('classId','==',classId).orderBy('seatNumber').get();
-        studentsSnap.forEach(doc => {
+        studentsSnap.forEach((doc) => {
           const opt = document.createElement('option');
           opt.value = doc.data().name;
           list.appendChild(opt);
@@ -298,18 +314,18 @@
         if (!tbody) return;
         tbody.innerHTML = '';
         const snap = await db.collection('students').where('classId','==',classId).orderBy('seatNumber').get();
-        snap.forEach(doc => {
+        snap.forEach((doc) => {
           const d = doc.data();
           tbody.innerHTML += `<tr><td style="text-align:right">${d.name}</td><td>${d.gender==='male'?'ذكر':'أنثى'}</td><td>${d.religion==='muslim'?'مسلم':'مسيحي'}</td><td>${d.seatNumber}</td></tr>`;
         });
       }
 
-      // ——— دوال التقييم ———
+      /* ====== EVALUATIONS ====== */
       async function loadEvalClasses() {
         const sel = document.getElementById('eval-class');
         sel.innerHTML = '';
         const snap = await db.collection('classes').where('teacher', '==', currentTeacherId).get();
-        snap.forEach(doc => {
+        snap.forEach((doc) => {
           const opt = document.createElement('option');
           const d = doc.data();
           opt.value = doc.id;
@@ -327,7 +343,7 @@
         const sel = document.getElementById('eval-student');
         sel.innerHTML = '';
         const snap = await db.collection('students').where('classId', '==', classId).orderBy('seatNumber').get();
-        snap.forEach(doc => {
+        snap.forEach((doc) => {
           const opt = document.createElement('option');
           opt.value = doc.id;
           opt.textContent = doc.data().name;
@@ -339,12 +355,12 @@
       async function updateStudentName() {
         const studentId = document.getElementById('eval-student').value;
         const span = document.getElementById('stu-name');
-        if (!studentId) return span.textContent = '';
+        if (!studentId) { span.textContent = ''; return; }
         const doc = await db.collection('students').doc(studentId).get();
         if (doc.exists) span.textContent = doc.data().name;
       }
 
-      function removeCertButton(){
+      function removeCertButton() {
         const slot = document.getElementById('cert-slot');
         if (slot) slot.innerHTML = '';
       }
@@ -365,20 +381,16 @@
           return;
         }
 
-        // منع التكرار لنفس الشهر/الفصل/الطالب
+        // منع التكرار
         const check = await db.collection('evaluations')
-          .where('classId', '==', classId)
-          .where('studentId', '==', studentId)
-          .where('month', '==', month)
+          .where('classId','==',classId)
+          .where('studentId','==',studentId)
+          .where('month','==',month)
           .get();
-
-        if (!check.empty) {
-          alert('⚠️ تم إدخال تقييم لهذا الطالب في هذا الشهر بالفعل');
-          return;
-        }
+        if (!check.empty) { alert('⚠️ تم إدخال تقييم لهذا الطالب في هذا الشهر بالفعل'); return; }
 
         const studentDoc = await db.collection('students').doc(studentId).get();
-        const name = studentDoc.exists ? studentDoc.data().name : 'طالب';
+        const name = studentDoc.exists ? (studentDoc.data().name || 'طالب') : 'طالب';
 
         await db.collection('evaluations').add({
           classId, studentId, teacher: currentTeacherId,
@@ -388,7 +400,7 @@
         await showEvaluationSummary();
         alert('✔️ تم حفظ التقييم');
 
-        // زر شهادة التقدير عند 40/40
+        // زر الشهادة عند 40/40
         removeCertButton();
         if (total === 40) {
           const slot = document.getElementById('cert-slot');
@@ -409,7 +421,6 @@
               klass: classText,
               teacher: `أ. ${tname}`
             });
-            // افتح صفحة الشهادة (تأكدي وجود certificate.html + الخلفية)
             window.open(`certificate.html?${q.toString()}`, '_blank', 'noopener');
           });
         }
@@ -425,19 +436,16 @@
         if (!classId || !month) { table.style.display = 'none'; return; }
 
         const snap = await db.collection('evaluations')
-          .where('classId', '==', classId)
-          .where('month', '==', month)
+          .where('classId','==',classId)
+          .where('month','==',month)
           .orderBy('name')
           .get();
 
-        if (snap.empty) {
-          table.style.display = 'none';
-          return;
-        }
+        if (snap.empty) { table.style.display = 'none'; return; }
 
-        snap.forEach(doc => {
+        snap.forEach((doc) => {
           const d = doc.data();
-          const testMark = d.test === 0 ? 'غ' : d.test;
+          const testMark = (d.test === 0) ? 'غ' : d.test;
           let evaluation = '';
           if (d.test === 0) evaluation = 'غياب';
           else if (d.total === 40) evaluation = 'ممتاز مع الشكر';
@@ -453,12 +461,13 @@
               <td>${d.beh}</td>
               <td>${d.total}</td>
               <td>${evaluation}</td>
-            </tr>`;
+            </tr>
+          `;
         });
         table.style.display = '';
       }
 
-      // تصدير دوال مهمة للنطاق العام (لو فيه HTML قديم بينادي onchange)
+      // دوال متاحة عالميًا لو فيه HTML قديم بينادي onchange
       window.loadEvalStudents = loadEvalStudents;
       window.showEvaluationSummary = showEvaluationSummary;
       window.updateStudentName = updateStudentName;
