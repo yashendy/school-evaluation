@@ -9,7 +9,6 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-
   <script src="firebase-config.js"></script>
 
   <style>
@@ -28,10 +27,10 @@
     .row { display:grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); gap:10px; align-items:center; margin:8px 0; }
     .muted { color:#666; font-size:13px; margin-top:6px; }
 
-    /* تنسيق قسم إدخال التقييم */
+    /* إدخال التقييم */
     .form-grid{
       display:grid;
-      grid-template-columns: 160px 1fr; /* عمود لليبل + عمود للحقل */
+      grid-template-columns: 160px 1fr;
       gap:10px 12px;
       align-items:center;
       max-width:720px;
@@ -41,6 +40,7 @@
       width:100%; padding:8px; border:1px solid #d0d7de; border-radius:6px;
     }
     .form-grid .full{ grid-column:1 / -1; }
+    .btn-cert{background:#2e7d32;color:#fff;border:0;border-radius:8px;padding:10px 12px;cursor:pointer}
   </style>
 </head>
 <body>
@@ -51,8 +51,8 @@
       <button data-sec="classes">📘 الفصول</button>
       <button data-sec="students">👨‍🎓 الطلاب</button>
       <button data-sec="tests">🧪 إدخال التقييم</button>
-      <button onclick="window.location.href='evaluations.html'">📄 عرض التقييمات</button>
       <button onclick="auth.signOut().then(()=>location.href='index.html')">🚪 تسجيل الخروج</button>
+      <button onclick="window.location.href='evaluations.html'">📄 عرض التقييمات</button>
     </aside>
 
     <main class="content">
@@ -62,7 +62,7 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      // جعل auth متاحًا للأزرار في الـsidebar
+      // نجعل auth عالمي للأزرار في الـsidebar
       window.auth = firebase.auth();
       const db = firebase.firestore();
       let currentTeacherId = null;
@@ -171,6 +171,9 @@
               <div class="full" style="margin-top:8px">
                 <button class="save-btn" id="btn-save-eval" style="width:100%">💾 حفظ التقييم</button>
               </div>
+
+              <!-- سيُحقن هنا زر شهادة التقدير عند الحصول على 40 -->
+              <div class="full" id="cert-slot"></div>
             </div>
 
             <h3 style="margin-top:16px">✅ تم إدخال التقييم لهؤلاء الطلاب (للفصل/الشهر الحاليين)</h3>
@@ -186,9 +189,9 @@
           requestAnimationFrame(() => {
             loadEvalClasses();
             document.getElementById('eval-class').addEventListener('change', async () => {
-              await loadEvalStudents(); await showEvaluationSummary();
+              await loadEvalStudents(); await showEvaluationSummary(); removeCertButton();
             });
-            document.getElementById('eval-month').addEventListener('change', showEvaluationSummary);
+            document.getElementById('eval-month').addEventListener('change', () => { showEvaluationSummary(); removeCertButton(); });
             document.getElementById('eval-student').addEventListener('change', updateStudentName);
             document.getElementById('btn-save-eval').addEventListener('click', submitEvaluation);
           });
@@ -233,7 +236,7 @@
       async function addStudent() {
         const g = document.getElementById('s-grade').value;
         const s = document.getElementById('s-system').value;
-        const c = document.getElementById('s-section').value;
+        const c = document.getElementById('s-section').value; /* ← تم إصلاح الخطأ هنا */
         const name = document.getElementById('s-name').value.trim();
         const gender = document.getElementById('s-gender').value;
         const religion = document.getElementById('s-religion').value;
@@ -273,7 +276,7 @@
       async function loadStudentList() {
         const g = document.getElementById('s-grade').value;
         const s = document.getElementById('s-system').value;
-        const c = document.getElementById('s-section').value; /* ← كان الخطأ هنا وتم إصلاحه */
+        const c = document.getElementById('s-section').value;
         const snap = await db.collection('classes')
           .where('grade','==',g).where('system','==',s).where('section','==',c)
           .where('teacher','==',currentTeacherId).get();
@@ -341,71 +344,76 @@
         if (doc.exists) span.textContent = doc.data().name;
       }
 
-      aasync function submitEvaluation() {
-  const classId = document.getElementById('eval-class').value;
-  const studentId = document.getElementById('eval-student').value;
-  const month = document.getElementById('eval-month').value;
-  const year = new Date().getFullYear();
-  const test = parseInt(document.getElementById('input-test').value) || 0;
-  const home = parseInt(document.getElementById('input-home').value) || 0;
-  const part = parseInt(document.getElementById('input-part').value) || 0;
-  const beh  = parseInt(document.getElementById('input-beh').value)  || 0;
-  const total = test + home + part + beh;
+      function removeCertButton(){
+        const slot = document.getElementById('cert-slot');
+        if (slot) slot.innerHTML = '';
+      }
 
-  if (!studentId || !classId || !month) {
-    alert('⚠️ تأكد من إدخال جميع البيانات');
-    return;
-  }
+      async function submitEvaluation() {
+        const classId = document.getElementById('eval-class').value;
+        const studentId = document.getElementById('eval-student').value;
+        const month = document.getElementById('eval-month').value;
+        const year = new Date().getFullYear();
+        const test = parseInt(document.getElementById('input-test').value) || 0;
+        const home = parseInt(document.getElementById('input-home').value) || 0;
+        const part = parseInt(document.getElementById('input-part').value) || 0;
+        const beh  = parseInt(document.getElementById('input-beh').value)  || 0;
+        const total = test + home + part + beh;
 
-  const check = await db.collection('evaluations')
-    .where('classId', '==', classId)
-    .where('studentId', '==', studentId)
-    .where('month', '==', month)
-    .get();
+        if (!studentId || !classId || !month) {
+          alert('⚠️ تأكد من إدخال جميع البيانات');
+          return;
+        }
 
-  if (!check.empty) {
-    alert('⚠️ تم إدخال تقييم لهذا الطالب في هذا الشهر بالفعل');
-    return;
-  }
+        // منع التكرار لنفس الشهر/الفصل/الطالب
+        const check = await db.collection('evaluations')
+          .where('classId', '==', classId)
+          .where('studentId', '==', studentId)
+          .where('month', '==', month)
+          .get();
 
-  const studentDoc = await db.collection('students').doc(studentId).get();
-  const name = studentDoc.exists ? studentDoc.data().name : 'طالب';
+        if (!check.empty) {
+          alert('⚠️ تم إدخال تقييم لهذا الطالب في هذا الشهر بالفعل');
+          return;
+        }
 
-  await db.collection('evaluations').add({
-    classId, studentId, teacher: currentTeacherId,
-    name, test, home, part, beh, total, month, year
-  });
+        const studentDoc = await db.collection('students').doc(studentId).get();
+        const name = studentDoc.exists ? studentDoc.data().name : 'طالب';
 
-  await showEvaluationSummary();
-  alert('✔️ تم حفظ التقييم');
+        await db.collection('evaluations').add({
+          classId, studentId, teacher: currentTeacherId,
+          name, test, home, part, beh, total, month, year
+        });
 
-  // لو الدرجة النهائية = 40 يظهر زرار طباعة الشهادة
-  if (total === 40) {
-    const btnContainer = document.createElement('div');
-    btnContainer.style.marginTop = '10px';
-    btnContainer.innerHTML = `
-      <button id="btn-certificate" class="save-btn" style="background:green; color:white">
-        🏆 طباعة شهادة التقدير
-      </button>
-    `;
-    document.getElementById('eval-form').appendChild(btnContainer);
+        await showEvaluationSummary();
+        alert('✔️ تم حفظ التقييم');
 
-    document.getElementById('btn-certificate').addEventListener('click', async () => {
-      const cls = await db.collection('classes').doc(classId).get();
-      const cdata = cls.data();
-      const classText = `${cdata.grade} - ${cdata.system} - ${cdata.section}`;
-      const tdoc = await db.collection('users').doc(currentTeacherId).get();
-      const tname = tdoc.exists ? (tdoc.data().name || '') : '';
-      const q = new URLSearchParams({
-        name, month, year: String(year),
-        klass: classText,
-        teacher: `أ. ${tname}`
-      });
-      window.open(`certificate.html?${q.toString()}`, '_blank', 'noopener');
-    });
-  }
-}
+        // زر شهادة التقدير عند 40/40
+        removeCertButton();
+        if (total === 40) {
+          const slot = document.getElementById('cert-slot');
+          const btn = document.createElement('button');
+          btn.className = 'btn-cert';
+          btn.id = 'btn-certificate';
+          btn.textContent = '🏆 طباعة شهادة التقدير';
+          slot.appendChild(btn);
 
+          btn.addEventListener('click', async () => {
+            const cls = await db.collection('classes').doc(classId).get();
+            const cdata = cls.data();
+            const classText = `${cdata.grade} - ${cdata.system} - ${cdata.section}`;
+            const tdoc = await db.collection('users').doc(currentTeacherId).get();
+            const tname = tdoc.exists ? (tdoc.data().name || '') : '';
+            const q = new URLSearchParams({
+              name, month, year: String(year),
+              klass: classText,
+              teacher: `أ. ${tname}`
+            });
+            // افتح صفحة الشهادة (تأكدي وجود certificate.html + الخلفية)
+            window.open(`certificate.html?${q.toString()}`, '_blank', 'noopener');
+          });
+        }
+      }
 
       async function showEvaluationSummary() {
         const classId = document.getElementById('eval-class').value;
@@ -450,7 +458,7 @@
         table.style.display = '';
       }
 
-      // اجعل بعض الدوال متاحة عالميًا في حال وجود HTML قديم فيه onchange
+      // تصدير دوال مهمة للنطاق العام (لو فيه HTML قديم بينادي onchange)
       window.loadEvalStudents = loadEvalStudents;
       window.showEvaluationSummary = showEvaluationSummary;
       window.updateStudentName = updateStudentName;
@@ -459,4 +467,3 @@
   </script>
 </body>
 </html>
-
