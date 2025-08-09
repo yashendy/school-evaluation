@@ -11,10 +11,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 
-  <!-- html2pdf (jsPDF + html2canvas bundle) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
-  <!-- إعدادات Firebase الخاصة بك -->
+  <!-- إعدادات Firebase -->
   <script src="firebase-config.js"></script>
 
   <style>
@@ -36,18 +33,6 @@
     th,td{border:1px solid var(--border);padding:8px;text-align:center;font-size:14px}
     th{background:var(--head)}
     .muted{color:var(--muted);font-size:13px;text-align:center;margin-top:6px}
-    /* تنسيق قالب الPDF */
-    #pdf-sheet{direction:rtl;font-family:'Segoe UI',Tahoma,Arial;color:#000}
-    #pdf-sheet .pdf-header{position:relative;padding:24px}
-    #pdf-sheet .pdf-header .logo{position:absolute;right:24px;top:8px;width:70px}
-    #pdf-sheet .pdf-title{font-weight:700;font-size:18px;text-align:center;margin-bottom:4px}
-    #pdf-sheet .pdf-sub{font-size:14px;text-align:center;margin-bottom:4px}
-    #pdf-sheet .pdf-class{font-size:13px;text-align:center;margin-bottom:10px}
-    #pdf-sheet hr{border:none;border-top:1px solid #cfd8dc;margin:10px 24px}
-    #pdf-sheet table{width:calc(100% - 48px);margin:8px 24px 0;border-collapse:collapse;font-size:12px}
-    #pdf-sheet th,#pdf-sheet td{border:1px solid #cfd8dc;padding:6px;text-align:center}
-    #pdf-sheet th{background:#eceff1}
-    #pdf-sheet .pdf-footer{display:flex;justify-content:space-between;margin:14px 24px 10px;font-size:12px}
   </style>
 </head>
 <body>
@@ -92,9 +77,6 @@
     </table>
   </div>
 
-  <!-- قالب PDF (نركّبه ونحوّله إلى PDF) -->
-  <div id="pdf-sheet" style="display:none"></div>
-
   <script>
     // ===== Firebase refs =====
     const auth = firebase.auth();
@@ -107,7 +89,7 @@
     // ===== Back button =====
     document.getElementById('back-btn').addEventListener('click', () => {
       if (history.length > 1) history.back();
-      else window.location.href = 'teacher.html'; // عدّلي لو اسم صفحة المعلم مختلف
+      else window.location.href = 'teacher.html';
     });
 
     // ===== Auth + load classes =====
@@ -221,118 +203,117 @@
       });
     }
 
-    // ===== Build PDF HTML =====
-    function buildPDFHTML({year, month, classText, rows, blank=false}) {
-      const header = `
-        <div class="pdf-header">
-          <img class="logo" src="logo.png" alt="logo">
-          <div class="pdf-title">معهد الدراسات الإدارية والفنية</div>
-          <div class="pdf-sub">نتيجة اختبارات مادة التربية الإسلامية لشهر ${month} لسنة ${year}</div>
-          <div class="pdf-class">${classText}</div>
-        </div>
-        <hr/>
-      `;
+    // ===== Build printable HTML =====
+    function buildPrintableHTML({year, month, classText, rows, blank=false}) {
+      const monthPart = month ? `نتيجة اختبارات مادة التربية الإسلامية لشهر ${month} لسنة ${year}` : `نتيجة اختبارات مادة التربية الإسلامية لسنة ${year}`;
 
-      const head = `
-        <thead>
-          <tr>
-            <th>اسم الطالب</th>
-            <th>اختبار</th>
-            <th>واجب</th>
-            <th>مشاركة</th>
-            <th>سلوك</th>
-            <th>المجموع</th>
-            <th>التقدير</th>
-          </tr>
-        </thead>`;
-
-      const body = rows.map(r => `
+      return `
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>تقرير</title>
+<style>
+  @page { size: A4; margin: 14mm; }
+  body{ font-family: "Segoe UI", Tahoma, Arial, sans-serif; direction: rtl; }
+  .header{ position: relative; padding-top: 10px; }
+  .header img{ position: absolute; right: 0; top: 0; width: 70px; height: auto; }
+  .title{ text-align: center; font-weight: 700; font-size: 18px; }
+  .sub{ text-align: center; font-size: 14px; margin-top: 4px; }
+  .classline{ text-align: center; font-size: 13px; margin-top: 4px; }
+  hr{ border: none; border-top: 1px solid #cfd8dc; margin: 10px 0 12px; }
+  table{ width: 100%; border-collapse: collapse; font-size: 12px; }
+  th,td{ border:1px solid #cfd8dc; padding:6px; text-align:center; }
+  th{ background:#eceff1; }
+  td:first-child{ text-align: right; }
+  .footer{ position: fixed; bottom: 8mm; left: 0; right: 0; font-size: 12px; display:flex; justify-content:space-between; }
+  .footer .right{ margin-right: 4mm; }
+  .footer .left{ margin-left: 4mm; }
+</style>
+</head>
+<body>
+  <div class="header">
+    <img src="${location.origin + location.pathname.replace(/\\/[^/]*$/, '/') + 'logo.png'}" alt="logo">
+    <div class="title">معهد الدراسات الإدارية والفنية</div>
+    <div class="sub">${monthPart}</div>
+    <div class="classline">${classText}</div>
+  </div>
+  <hr/>
+  <table>
+    <thead>
+      <tr>
+        <th>اسم الطالب</th>
+        <th>اختبار</th>
+        <th>واجب</th>
+        <th>مشاركة</th>
+        <th>سلوك</th>
+        <th>المجموع</th>
+        <th>التقدير</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rows.map(r => `
         <tr>
-          <td style="text-align:right">${r.name ?? ''}</td>
+          <td>${r.name ?? ''}</td>
           <td>${blank ? '' : (r.test === 0 ? '-' : (r.test ?? ''))}</td>
           <td>${blank ? '' : (r.test === 0 ? '-' : (r.home ?? ''))}</td>
           <td>${blank ? '' : (r.test === 0 ? '-' : (r.part ?? ''))}</td>
           <td>${blank ? '' : (r.test === 0 ? '-' : (r.beh  ?? ''))}</td>
           <td>${blank ? '' : (r.test === 0 ? '-' : (r.total?? ''))}</td>
-          <td>${blank ? '' : (r.grade ?? '')}</td>
-        </tr>`).join('');
+          <td>${blank ? '' : (r.grade ?? ''))}</td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>
 
-      const table = `
-        <table>
-          ${head}
-          <tbody>${body}</tbody>
-        </table>
-      `;
+  <div class="footer">
+    <div class="right">مع تحيات/ أ.ولاء حماد</div>
+    <div class="left">معلمة المادة/ أ.خديجة خالد جودة</div>
+  </div>
 
-      const footer = `
-        <div class="pdf-footer">
-          <div>مع تحيات/ أ.ولاء حماد</div>
-          <div>معلمة المادة/ أ.خديجة خالد جودة</div>
-        </div>
-      `;
-
-      return header + table + footer;
+  <script>
+    // اطبع تلقائياً ثم أغلق النافذة بعد الطباعة
+    window.addEventListener('load', () => {
+      window.print();
+      setTimeout(() => window.close(), 300);
+    });
+  </script>
+</body>
+</html>`;
     }
 
-    async function exportFilledPDF() {
-      if (!cachedRows.length) return alert('اعمل بحث أولاً لعرض الجدول');
+    function openPrint({blank=false}) {
       const year  = new Date().getFullYear();
       const month = document.getElementById('month-select').value;
       const klass = getSelectedClassText();
 
-      const sheet = document.getElementById('pdf-sheet');
-      sheet.innerHTML = buildPDFHTML({year, month, classText: klass, rows: cachedRows, blank:false});
-      sheet.style.display = 'block';
+      const rows = (blank)
+        ? cachedRows.map(r => ({ name:r.name }))
+        : cachedRows;
 
-      await html2pdf().set({
-        filename: `نتيجة_${klass}_${month}_${year}.pdf`,
-        margin: [10,10,10,10],
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' },
-        pagebreak: { mode: ['css','legacy'] }
-      }).from(sheet).save();
-
-      sheet.style.display = 'none';
-    }
-
-    async function exportBlankPDF() {
-      if (!cachedRows.length) await searchAndRender();
-      if (!cachedRows.length) return;
-
-      const year  = new Date().getFullYear();
-      const month = ''; // لا نظهر الشهر في الفارغ
-      const klass = getSelectedClassText();
-
-      const namesOnly = cachedRows.map(r => ({ name: r.name }));
-      // نضيف أعمدة فاضية
-      const rows = namesOnly.map(r => ({
-        name: r.name, test:'', home:'', part:'', beh:'', total:'', grade:''
-      }));
-
-      const sheet = document.getElementById('pdf-sheet');
-      sheet.innerHTML = buildPDFHTML({
-        year, month: (new Date()).toLocaleString('ar', { month: 'long' }),
-        classText: klass, rows, blank:true
+      const html = buildPrintableHTML({
+        year, month: blank ? '' : month,
+        classText: klass, rows,
+        blank
       });
-      sheet.style.display = 'block';
 
-      await html2pdf().set({
-        filename: `كشف_فارغ_${klass}_${year}.pdf`,
-        margin: [10,10,10,10],
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' },
-        pagebreak: { mode: ['css','legacy'] }
-      }).from(sheet).save();
-
-      sheet.style.display = 'none';
+      const w = window.open('', '_blank', 'noopener,noreferrer,width=900,height=1000');
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
     }
 
     // ===== events =====
     document.getElementById('search-btn').addEventListener('click', searchAndRender);
-    document.getElementById('pdf-filled-btn').addEventListener('click', exportFilledPDF);
-    document.getElementById('pdf-blank-btn').addEventListener('click', exportBlankPDF);
+    document.getElementById('pdf-filled-btn').addEventListener('click', () => {
+      if (!cachedRows.length) return alert('اعمل بحث أولاً لعرض الجدول');
+      openPrint({blank:false});
+    });
+    document.getElementById('pdf-blank-btn').addEventListener('click', async () => {
+      if (!cachedRows.length) await searchAndRender();
+      if (!cachedRows.length) return;
+      openPrint({blank:true});
+    });
   </script>
 </body>
 </html>
