@@ -40,7 +40,8 @@
       width:100%; padding:8px; border:1px solid #d0d7de; border-radius:6px;
     }
     .form-grid .full{ grid-column:1 / -1; }
-    .btn-cert{background:#2e7d32;color:#fff;border:0;border-radius:8px;padding:10px 12px;cursor:pointer}
+    .btn-cert{background:#2e7d32;color:#fff;border:0;border-radius:8px;padding:6px 10px;cursor:pointer}
+    .btn-cert[disabled]{opacity:.35; cursor:not-allowed}
   </style>
 </head>
 <body>
@@ -62,10 +63,12 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      // متغيرات Firebase
-      window.auth = firebase.auth(); // لاستخدامه في أزرار الـsidebar
+      // ثوابت عامة
+      const CERT_PAGE = 'certificate.html'; // اسم صفحة الشهادة
+      window.auth = firebase.auth();        // لاستخدامه في أزرار الـsidebar
       const db = firebase.firestore();
       let currentTeacherId = null;
+      let currentTeacherName = '';
 
       auth.onAuthStateChanged(async (user) => {
         if (!user) { location.href = 'index.html'; return; }
@@ -80,7 +83,8 @@
           return;
         }
 
-        document.getElementById('teacher-name').textContent = `أ. ${data.name}`;
+        currentTeacherName = data.name || '';
+        document.getElementById('teacher-name').textContent = `أ. ${currentTeacherName}`;
         document.querySelectorAll('.sidebar button[data-sec]').forEach((btn) => {
           btn.addEventListener('click', () => showSection(btn.dataset.sec));
         });
@@ -181,8 +185,6 @@
               <div class="full" style="margin-top:8px">
                 <button class="save-btn" id="btn-save-eval" style="width:100%">💾 حفظ التقييم</button>
               </div>
-
-              <div class="full" id="cert-slot"></div>
             </div>
 
             <h3 style="margin-top:16px">✅ تم إدخال التقييم لهؤلاء الطلاب (للفصل/الشهر الحاليين)</h3>
@@ -190,7 +192,7 @@
               <thead>
                 <tr>
                   <th>الاسم</th><th>اختبار</th><th>واجب</th><th>مشاركة</th>
-                  <th>سلوك</th><th>المجموع</th><th>التقدير</th>
+                  <th>سلوك</th><th>المجموع</th><th>التقدير</th><th>شهادة</th>
                 </tr>
               </thead>
               <tbody></tbody>
@@ -201,12 +203,8 @@
             document.getElementById('eval-class').addEventListener('change', async () => {
               await loadEvalStudents();
               await showEvaluationSummary();
-              removeCertButton();
             });
-            document.getElementById('eval-month').addEventListener('change', () => {
-              showEvaluationSummary();
-              removeCertButton();
-            });
+            document.getElementById('eval-month').addEventListener('change', showEvaluationSummary);
             document.getElementById('eval-student').addEventListener('change', updateStudentName);
             document.getElementById('btn-save-eval').addEventListener('click', submitEvaluation);
           });
@@ -321,6 +319,22 @@
       }
 
       /* ====== EVALUATIONS ====== */
+
+      // فتح الشهادة لاسم طالب معيّن
+      function openCertificateForStudent(studentName){
+        const month = document.getElementById('eval-month').value;
+        const year  = new Date().getFullYear();
+        const classText = document.getElementById('eval-class').selectedOptions[0]?.textContent || '';
+        const q = new URLSearchParams({
+          name: studentName,
+          month,
+          year: String(year),
+          klass: classText,
+          teacher: `أ. ${currentTeacherName || ''}`
+        });
+        window.open(`${CERT_PAGE}?${q.toString()}`, '_blank', 'noopener');
+      }
+
       async function loadEvalClasses() {
         const sel = document.getElementById('eval-class');
         sel.innerHTML = '';
@@ -360,11 +374,6 @@
         if (doc.exists) span.textContent = doc.data().name;
       }
 
-      function removeCertButton() {
-        const slot = document.getElementById('cert-slot');
-        if (slot) slot.innerHTML = '';
-      }
-
       async function submitEvaluation() {
         const classId = document.getElementById('eval-class').value;
         const studentId = document.getElementById('eval-student').value;
@@ -376,10 +385,7 @@
         const beh  = parseInt(document.getElementById('input-beh').value)  || 0;
         const total = test + home + part + beh;
 
-        if (!studentId || !classId || !month) {
-          alert('⚠️ تأكد من إدخال جميع البيانات');
-          return;
-        }
+        if (!studentId || !classId || !month) { alert('⚠️ تأكد من إدخال جميع البيانات'); return; }
 
         // منع التكرار
         const check = await db.collection('evaluations')
@@ -399,31 +405,6 @@
 
         await showEvaluationSummary();
         alert('✔️ تم حفظ التقييم');
-
-        // زر الشهادة عند 40/40
-        removeCertButton();
-        if (total === 40) {
-          const slot = document.getElementById('cert-slot');
-          const btn = document.createElement('button');
-          btn.className = 'btn-cert';
-          btn.id = 'btn-certificate';
-          btn.textContent = '🏆 طباعة شهادة التقدير';
-          slot.appendChild(btn);
-
-          btn.addEventListener('click', async () => {
-            const cls = await db.collection('classes').doc(classId).get();
-            const cdata = cls.data();
-            const classText = `${cdata.grade} - ${cdata.system} - ${cdata.section}`;
-            const tdoc = await db.collection('users').doc(currentTeacherId).get();
-            const tname = tdoc.exists ? (tdoc.data().name || '') : '';
-            const q = new URLSearchParams({
-              name, month, year: String(year),
-              klass: classText,
-              teacher: `أ. ${tname}`
-            });
-            window.open(`certificate.html?${q.toString()}`, '_blank', 'noopener');
-          });
-        }
       }
 
       async function showEvaluationSummary() {
@@ -452,6 +433,10 @@
           else if (d.total >= 36) evaluation = 'ممتاز';
           else evaluation = 'يرجى تشجيع الطفل لرفع مستواه';
 
+          const certCell = (d.total === 40)
+            ? `<button type="button" class="btn-cert cert-btn" data-name="${d.name}">🏆</button>`
+            : '—';
+
           tbody.innerHTML += `
             <tr>
               <td style="text-align:right">${d.name}</td>
@@ -461,10 +446,19 @@
               <td>${d.beh}</td>
               <td>${d.total}</td>
               <td>${evaluation}</td>
+              <td>${certCell}</td>
             </tr>
           `;
         });
         table.style.display = '';
+
+        // تفويض حدث لفتح الشهادة عند الضغط على زر أي صف
+        table.querySelector('tbody').onclick = (e) => {
+          const btn = e.target.closest('.cert-btn');
+          if (!btn) return;
+          const studentName = btn.dataset.name || '';
+          openCertificateForStudent(studentName);
+        };
       }
 
       // دوال متاحة عالميًا لو فيه HTML قديم بينادي onchange
