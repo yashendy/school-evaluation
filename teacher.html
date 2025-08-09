@@ -48,7 +48,7 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      window.auth = firebase.auth();            // متاح للأزرار في الـsidebar
+      window.auth = firebase.auth(); // لاستخدامه في الأزرار
       const db = firebase.firestore();
       let currentTeacherId = null;
 
@@ -156,11 +156,11 @@
               <tbody></tbody>
             </table>`;
           requestAnimationFrame(() => {
-            // نحمّل الفصول ونربط التغييرات
             loadEvalClasses();
-            // تغيير الفصل/الشهر يحدث تحديثًا فوريًا للجدول
-            document.getElementById('eval-class').addEventListener('change', () => {
-              loadEvalStudents().then(showEvaluationSummary);
+            // ربط الأحداث بدل inline onchange
+            document.getElementById('eval-class').addEventListener('change', async () => {
+              await loadEvalStudents();
+              await showEvaluationSummary();
             });
             document.getElementById('eval-month').addEventListener('change', showEvaluationSummary);
             document.getElementById('eval-student').addEventListener('change', updateStudentName);
@@ -247,7 +247,7 @@
       async function loadStudentList() {
         const g = document.getElementById('s-grade').value;
         const s = document.getElementById('s-system').value;
-        const c = document.getElementById('s-section').value;
+        the c = document.getElementById('s-section').value;
         const snap = await db.collection('classes').where('grade','==',g).where('system','==',s).where('section','==',c).where('teacher','==',currentTeacherId).get();
         if (snap.empty) { alert('⚠️ الفصل غير موجود'); return; }
         const classId = snap.docs[0].id;
@@ -287,7 +287,7 @@
         });
         if (snap.docs.length) {
           await loadEvalStudents();
-          await showEvaluationSummary(); // أول عرض للجدول
+          await showEvaluationSummary();
         }
       }
 
@@ -349,9 +349,8 @@
           name, test, home, part, beh, total, month, year
         });
 
-        // تحديث الجدول فورًا
-        await showEvaluationSummary();
-        alert('✔️ تم حفظ التقييم وإضافته في القائمة أسفلًا');
+        await showEvaluationSummary(); // تحديث جدول المُقيّمين
+        alert('✔️ تم حفظ التقييم وإضافته للقائمة أسفلًا');
       }
 
       async function showEvaluationSummary() {
@@ -396,6 +395,11 @@
         });
         table.style.display = '';
       }
+
+      // ------ اجعل الدوال متاحة عالميًا (لو كان في HTML قديم فيه onchange) ------
+      window.loadEvalStudents = loadEvalStudents;
+      window.showEvaluationSummary = showEvaluationSummary;
+      window.updateStudentName = updateStudentName;
     });
   </script>
 </body>
