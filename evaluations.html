@@ -157,7 +157,7 @@
     let fontLoaded = false;
     async function ensureArabicFont() {
       if (fontLoaded) return;
-      const url = 'fonts/Cairo-Regular.ttf'; // ضعِ الملف هنا
+      const url = 'Cairo-Regular.ttf'; // ضعِ الملف هنا
       const resp = await fetch(url);
       if (!resp.ok) {
         alert('⚠️ لم يتم العثور على ملف الخط Cairo-Regular.ttf داخل مجلد fonts/.');
@@ -372,3 +372,4 @@
   </script>
 </body>
 </html>
+
