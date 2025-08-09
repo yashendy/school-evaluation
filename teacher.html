@@ -36,11 +36,10 @@
       max-width:720px;
     }
     .form-grid label{ justify-self:end; color:#222; }
-    .form-grid input,.form-grid select{
-      width:100%; padding:8px; border:1px solid #d0d7de; border-radius:6px;
-    }
+    .form-grid input,.form-grid select{ width:100%; padding:8px; border:1px solid #d0d7de; border-radius:6px; }
     .form-grid .full{ grid-column:1 / -1; }
-    .btn-cert{background:#2e7d32;color:#fff;border:0;border-radius:8px;padding:6px 10px;cursor:pointer}
+
+    .btn-cert{ background:#2e7d32; color:#fff; border:0; border-radius:8px; padding:6px 10px; cursor:pointer; }
     .btn-cert[disabled]{opacity:.35; cursor:not-allowed}
   </style>
 </head>
@@ -63,13 +62,14 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      // ثوابت عامة
-      const CERT_PAGE = 'certificate.html'; // اسم صفحة الشهادة
-      window.auth = firebase.auth();        // لاستخدامه في أزرار الـsidebar
+      // ثوابت وعامّات
+      const CERT_PAGE = 'certificate.html';
+      window.auth = firebase.auth();
       const db = firebase.firestore();
       let currentTeacherId = null;
       let currentTeacherName = '';
 
+      /* تسجيل الدخول والتحقق من صلاحية المعلم */
       auth.onAuthStateChanged(async (user) => {
         if (!user) { location.href = 'index.html'; return; }
         currentTeacherId = user.uid;
@@ -92,11 +92,12 @@
         showSection('classes');
       });
 
+      /* تغيير الأقسام */
       function showSection(sec) {
         const main = document.getElementById('main-content');
         main.innerHTML = '';
 
-        /* ====== إدارة الفصول ====== */
+        /* ---- إدارة الفصول ---- */
         if (sec === 'classes') {
           main.innerHTML = `
             <h2>📘 إدارة الفصول</h2>
@@ -121,7 +122,7 @@
           return;
         }
 
-        /* ====== الطلاب ====== */
+        /* ---- الطلاب ---- */
         if (sec === 'students') {
           main.innerHTML = `
             <h2>👨‍🎓 إضافة طالب</h2>
@@ -151,7 +152,7 @@
           return;
         }
 
-        /* ====== إدخال التقييم ====== */
+        /* ---- إدخال التقييم ---- */
         if (sec === 'tests') {
           main.innerHTML = `
             <h2>🧪 إدخال التقييم</h2>
@@ -332,14 +333,12 @@
           klass: classText,
           teacher: `أ. ${currentTeacherName || ''}`
         });
-        const url = `certificate.html?${q.toString()}`;
+        const url = `${CERT_PAGE}?${q.toString()}`;
 
-        // فتح مضمون في تبويب جديد (بدون ما يتمنع كـ popup)
+        // فتح مضمون في تبويب جديد (يتفادى حظر الـpopup)
         const a = document.createElement('a');
         a.href = url; a.target = '_blank'; a.rel = 'noopener';
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
+        document.body.appendChild(a); a.click(); a.remove();
       }
 
       async function loadEvalClasses() {
@@ -412,6 +411,12 @@
 
         await showEvaluationSummary();
         alert('✔️ تم حفظ التقييم');
+
+        // خيار فوري لفتح الشهادة إذا كانت 40/40
+        if (total === 40) {
+          const openIt = confirm('🎉 الطالب حصل على 40/40 — فتح شهادة التقدير؟');
+          if (openIt) openCertificateForStudent(name);
+        }
       }
 
       async function showEvaluationSummary() {
@@ -443,7 +448,7 @@
           else evaluation = 'يرجى تشجيع الطفل لرفع مستواه';
 
           const certCell = (totalNum === 40)
-            ? `<button type="button" class="btn-cert cert-btn" data-name="${d.name}">🏆 شهادة التقدير</button>`
+            ? `<button type="button" class="btn-cert cert-btn" data-name="${d.name}">🏆 شهادة</button>`
             : '—';
 
           tbody.innerHTML += `
@@ -456,13 +461,12 @@
               <td>${totalNum}</td>
               <td>${evaluation}</td>
               <td>${certCell}</td>
-            </tr>
-          `;
+            </tr>`;
         });
 
         table.style.display = '';
 
-        // تفويض حدث الضغط على زر الشهادة
+        // تفويض حدث زر الشهادة
         table.querySelector('tbody').onclick = (e) => {
           const btn = e.target.closest('.cert-btn');
           if (!btn) return;
@@ -471,7 +475,7 @@
         };
       }
 
-      // دوال متاحة عالميًا لو فيه HTML قديم بينادي onchange
+      // تصدير دوال مهمة للنطاق العام
       window.loadEvalStudents = loadEvalStudents;
       window.showEvaluationSummary = showEvaluationSummary;
       window.updateStudentName = updateStudentName;
