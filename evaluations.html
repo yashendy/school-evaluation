@@ -203,7 +203,7 @@
       });
     }
 
-    // ===== Build printable HTML (Fixed) =====
+    // ===== Build printable HTML (safe) =====
     function buildPrintableHTML({year, month, classText, rows, blank=false}) {
       const monthPart = month
         ? `نتيجة اختبارات مادة التربية الإسلامية لشهر ${month} لسنة ${year}`
@@ -286,39 +286,45 @@
 </html>`;
     }
 
+    // ===== Open print safely via Blob (no document.write) =====
     function openPrint({blank=false}) {
-  const year  = new Date().getFullYear();
-  const month = document.getElementById('month-select').value;
-  const klass = getSelectedClassText();
+      const year  = new Date().getFullYear();
+      const month = document.getElementById('month-select').value;
+      const klass = getSelectedClassText();
 
-  const rows = (blank)
-    ? cachedRows.map(r => ({ name:r.name }))
-    : cachedRows;
+      const rows = blank ? cachedRows.map(r => ({ name:r.name })) : cachedRows;
 
-  const html = buildPrintableHTML({
-    year,
-    month: blank ? '' : month,
-    classText: klass,
-    rows,
-    blank
-  });
+      const html = buildPrintableHTML({
+        year,
+        month: blank ? '' : month,
+        classText: klass,
+        rows,
+        blank
+      });
 
-  // افتح كـ Blob URL بدل window.open + document.write
-  try {
-    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-    const url  = URL.createObjectURL(blob);
-    const win  = window.open(url, '_blank', 'noopener,noreferrer');
+      try {
+        const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+        const url  = URL.createObjectURL(blob);
+        const win  = window.open(url, '_blank', 'noopener,noreferrer');
+        if (!win) alert('⚠️ المتصفح منع فتح التبويب. اسمح بفتح النوافذ المنبثقة لهذا الموقع ثم جرّب مرة أخرى.');
+        setTimeout(() => URL.revokeObjectURL(url), 30000);
+      } catch (err) {
+        console.error(err);
+        alert('حدث خطأ أثناء إنشاء ملف الطباعة.');
+      }
+    }
 
-    // تنظيف الـURL بعد ما التبويب يحمّل
-    setTimeout(() => URL.revokeObjectURL(url), 30000);
-    if (!win) alert('⚠️ المتصفح منع فتح التبويب. اسمح بفتح النوافذ المنبثقة لهذا الموقع ثم جرّب مرة أخرى.');
-  } catch (err) {
-    console.error(err);
-    alert('حدث خطأ أثناء إنشاء ملف الطباعة.');
-  }
-}
-
+    // ===== events =====
+    document.getElementById('search-btn').addEventListener('click', searchAndRender);
+    document.getElementById('pdf-filled-btn').addEventListener('click', () => {
+      if (!cachedRows.length) return alert('اعمل بحث أولاً لعرض الجدول');
+      openPrint({blank:false});
+    });
+    document.getElementById('pdf-blank-btn').addEventListener('click', async () => {
+      if (!cachedRows.length) await searchAndRender();
+      if (!cachedRows.length) return;
+      openPrint({blank:true});
+    });
   </script>
 </body>
 </html>
-
