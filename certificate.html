@@ -7,7 +7,7 @@
 <link rel="icon" href="data:,">
 
 <style>
-  /* A4 Landscape – بدون هوامش */
+  /* A4 Landscape – بدون هوامش للطباعة */
   @page { size: A4 landscape; margin: 0; }
   html, body { height:100%; }
   body{
@@ -33,39 +33,51 @@
   .bg{
     position:absolute; inset:0;
     width:100%; height:100%;
-    object-fit:cover;          /* غيّريها لـ contain لو الخلفية لها هوامش */
+    object-fit:cover; /* غيّريها لـ contain لو لزم */
     z-index:0;
   }
 
-  /* عناصر نصية فوق الخلفية */
   .overlay{ position:relative; z-index:1; width:100%; height:100%; }
 
-  /* تموضع اسم الطالب على السطر المنقّط */
- .pos-name{
+  /* ===== تموضع العناصر (قابلة للمعايرة) ===== */
+  /* اسم الطالب على السطر المنقّط */
+  .pos-name{
     position:absolute;
-    top: 45%;       /* نزول تحت العنوان */
-    right: 20%;     /* من ناحية اليمين – عدلي النسبة حسب مكان السطر */
-    width: 60%;     /* طول السطر المنقط */
-    text-align: right; /* محاذاة يمين للسطر */
+    top: 45%;       /* ⬅️ عدّلي حسب حاجتك أو استخدمي وضع debug */
+    right: 14%;     /* بداية السطر من اليمين */
+    width: 60%;     /* طول السطر */
+    text-align: right;
     font-size: 30px;
     font-weight: 700;
     color:#000;
-    letter-spacing: .5px;
-}
+    letter-spacing: .3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 
-
-  /* تموضع بلوك التوقيع (معلم المادة + المادة + الشهر/السنة) */
+  /* كتلة "التوقيع" */
   .pos-sign{
     position:absolute;
-    /* 🔧 عدّلي القيم حسب مكان “التوقيع” في الخلفية */
-    top: 70%;            /* قريب من منطقة التوقيع بالصورة */
+    top: 70%;       /* ⬅️ منطقة "التوقيع" تقريبًا */
     left: 16%;
-    text-align: right;   /* محاذاة يمين لتناسب كلمة "التوقيع" يمين الخط */
+    text-align: right; /* علشان تطابق اتجاه السطر المنقّط */
     font-size: 16px;
     color:#111;
     line-height: 1.6;
   }
   .pos-sign .muted{ font-size: 14px; color:#333; }
+
+  /* شريط المعايرة */
+  .calib-panel{
+    position:fixed; inset:auto 12px 12px 12px;
+    background:rgba(0,0,0,.65); color:#fff; padding:10px 12px; border-radius:10px;
+    font: 13px/1.6 Tahoma,Arial;
+    display:none;
+  }
+  .calib-panel b{ color:#80ffea; }
+  .outline-debug .pos-name{ outline: 2px dashed #1e88e5; outline-offset:2px; }
+  .outline-debug .pos-sign{ outline: 2px dashed #43a047; outline-offset:2px; }
 
   .btns{ margin:16px auto; text-align:center }
   .btns button{ padding:10px 16px; border-radius:8px; border:1px solid #ccc; cursor:pointer; background:#f7f7f7 }
@@ -73,13 +85,13 @@
   @media print {
     body{ background:#fff; }
     .sheet{ box-shadow:none; margin:0; }
-    .btns{ display:none; }
+    .btns, .calib-panel{ display:none !important; }
   }
 </style>
 </head>
 <body>
 
-  <div class="sheet">
+  <div class="sheet" id="sheet">
     <!-- لو الصورة في مجلد آخر عدّلي المسار -->
     <img class="bg" src="certificate-bg.jpg" alt="خلفية الشهادة" onerror="this.style.display='none'">
 
@@ -87,10 +99,10 @@
       <!-- اسم الطالب على السطر المنقّط -->
       <div class="pos-name" id="nm">—</div>
 
-      <!-- منطقة التوقيع: معلم المادة + المادة + الشهر/السنة -->
-      <div class="pos-sign">
-        <div>معلم المادة</div>
-        <div class="muted">مادة التربية الإسلامية</div>
+      <!-- عند خانة "التوقيع": معلم المادة + المادة + الشهر/السنة -->
+      <div class="pos-sign" id="signBlock">
+        <div id="teacherLabel">معلم المادة</div>
+        <div class="muted" id="subjectLine">مادة التربية الإسلامية</div>
         <div class="muted" id="when">عن شهر — —</div>
       </div>
     </div>
@@ -100,39 +112,152 @@
     <button onclick="window.print()">🖨️ طباعة</button>
   </div>
 
+  <!-- لوحة المعايرة (تظهر في وضع debug=1) -->
+  <div class="calib-panel" id="calib">
+    <div>وضع المعايرة مفعل ✅ — استخدمي الأسهم لتحريك <b>الاسم</b>، و<strong>Shift+الأسهم</strong> لتحريك <b>التوقيع</b>.</div>
+    <div>Ctrl/⌘ + الأسهم = تغيير <b>العرض Width</b> لاسم الطالب.</div>
+    <div>القيم الحالية:
+      <div>name: top=<b id="v-nt"></b> • right=<b id="v-nr"></b> • width=<b id="v-nw"></b></div>
+      <div>sign: top=<b id="v-st"></b> • left=<b id="v-sl"></b></div>
+    </div>
+    <div>انقري لنسخ CSS: <button id="copyCss">نسخ القيم</button></div>
+  </div>
+
 <script>
   (function(){
     const p = new URLSearchParams(location.search);
 
-    // اسم الطالب
+    // 1) تعبئة البيانات
     const name  = p.get('name')  || 'طالب';
-    // الشهر والسنة (نفس اللي بتتبعت من صفحة المعلّم)
     const month = p.get('month') || '';
     const year  = p.get('year')  || new Date().getFullYear();
+    const teacher = p.get('teacher') || '';      // اختياري
+    const subject = p.get('subject') || 'مادة التربية الإسلامية'; // لو عايزة تغييرها من رابط
 
-    // تعبئة
     document.getElementById('nm').textContent = name;
-    document.getElementById('when').textContent =
-      (month ? `عن شهر ${month} ${year}` : `عن شهر — ${year}`);
 
-    // اطبع بعد تحميل الخلفية (أو بعد مهلة قصيرة)
+    // التوقيع
+    document.getElementById('teacherLabel').textContent = teacher ? `معلم المادة: ${teacher}` : 'معلم المادة';
+    document.getElementById('subjectLine').textContent  = subject;
+    document.getElementById('when').textContent         = month ? `عن شهر ${month} ${year}` : `عن شهر — ${year}`;
+
+    // 2) طباعة بعد تحميل الخلفية
     const img = document.querySelector('.bg');
     const printNow = () => setTimeout(()=>window.print(), 400);
-    if (!img || img.complete) printNow();
+    if (!img || img.complete) maybePrint();
     else {
-      img.addEventListener('load', printNow);
-      img.addEventListener('error', printNow);
+      img.addEventListener('load', maybePrint);
+      img.addEventListener('error', maybePrint);
+    }
+
+    // لو فيه debug=1 ما نطبعش تلقائيًا
+    function maybePrint(){
+      const debug = p.get('debug') === '1';
+      if (!debug) printNow();
+      setupDebug(debug);
+    }
+
+    // 3) وضع المعايرة (debug=1): أسهم لتحريك العناصر + عرض القيم
+    function setupDebug(enabled){
+      const panel = document.getElementById('calib');
+      const sheet = document.getElementById('sheet');
+      if (!enabled){ panel.style.display='none'; return; }
+
+      panel.style.display='block';
+      sheet.classList.add('outline-debug');
+
+      const nameEl = document.querySelector('.pos-name');
+      const signEl = document.querySelector('.pos-sign');
+
+      const v = {
+        nt: document.getElementById('v-nt'),
+        nr: document.getElementById('v-nr'),
+        nw: document.getElementById('v-nw'),
+        st: document.getElementById('v-st'),
+        sl: document.getElementById('v-sl'),
+      };
+
+      function getPercent(val, axis){ // px -> %
+        const base = axis === 'x' ? sheet.clientWidth : sheet.clientHeight;
+        return (val/base)*100;
+      }
+      function setPercent(el, prop, val){ el.style[prop] = val.toFixed(2)+'%'; }
+
+      // اقرئي القيم الحالية كنِسَب %
+      function readPercents(){
+        const rectS = sheet.getBoundingClientRect();
+        const rectN = nameEl.getBoundingClientRect();
+        const rectG = signEl.getBoundingClientRect();
+
+        const topN   = getPercent(rectN.top   - rectS.top, 'y');
+        const rightN = getPercent(rectS.right - rectN.right, 'x');
+        const widthN = getPercent(rectN.width, 'x');
+
+        const topG = getPercent(rectG.top  - rectS.top, 'y');
+        const leftG= getPercent(rectG.left - rectS.left,'x');
+
+        v.nt.textContent = topN.toFixed(2)+'%';
+        v.nr.textContent = rightN.toFixed(2)+'%';
+        v.nw.textContent = widthN.toFixed(2)+'%';
+        v.st.textContent = topG.toFixed(2)+'%';
+        v.sl.textContent = leftG.toFixed(2)+'%';
+      }
+
+      readPercents();
+
+      // التحكم بالأسهم:
+      // بدون أي مفاتيح: تحريك الاسم
+      // Shift: تحريك التوقيع
+      // Ctrl/⌘ + أسهم يمين/يسار: تغيير عرض الاسم
+      window.addEventListener('keydown', (e)=>{
+        const step = e.altKey ? 0.2 : 0.6; // Alt للحركة الدقيقة
+        let handled = false;
+
+        const useSign = e.shiftKey;
+        if (!e.ctrlKey && !e.metaKey){
+          // تحريك top/left/right
+          if (!useSign){
+            // الاسم: top + right
+            const curTop = parseFloat(getComputedStyle(nameEl).top);
+            const curRight = parseFloat(getComputedStyle(nameEl).right);
+            if (e.key === 'ArrowUp'){ setPercent(nameEl,'top', curTop - step); handled = true; }
+            if (e.key === 'ArrowDown'){ setPercent(nameEl,'top', curTop + step); handled = true; }
+            if (e.key === 'ArrowRight'){ setPercent(nameEl,'right', curRight - step); handled = true; }
+            if (e.key === 'ArrowLeft'){ setPercent(nameEl,'right', curRight + step); handled = true; }
+          } else {
+            // التوقيع: top + left
+            const curTop = parseFloat(getComputedStyle(signEl).top);
+            const curLeft = parseFloat(getComputedStyle(signEl).left);
+            if (e.key === 'ArrowUp'){ setPercent(signEl,'top', curTop - step); handled = true; }
+            if (e.key === 'ArrowDown'){ setPercent(signEl,'top', curTop + step); handled = true; }
+            if (e.key === 'ArrowRight'){ setPercent(signEl,'left', curLeft + step); handled = true; }
+            if (e.key === 'ArrowLeft'){ setPercent(signEl,'left', curLeft - step); handled = true; }
+          }
+        } else if ((e.ctrlKey || e.metaKey) && !useSign){
+          // تغيير عرض الاسم
+          const curW = parseFloat(getComputedStyle(nameEl).width);
+          if (e.key === 'ArrowRight'){ setPercent(nameEl,'width', curW + step); handled = true; }
+          if (e.key === 'ArrowLeft'){ setPercent(nameEl,'width', curW - step); handled = true; }
+        }
+
+        if (handled){
+          e.preventDefault();
+          readPercents();
+        }
+      });
+
+      // نسخ CSS الحالي
+      document.getElementById('copyCss').onclick = () => {
+        const css = `
+.pos-name{ top:${v.nt.textContent}; right:${v.nr.textContent}; width:${v.nw.textContent}; }
+.pos-sign{ top:${v.st.textContent}; left:${v.sl.textContent}; }
+`.trim();
+        navigator.clipboard.writeText(css).then(()=>{
+          alert('تم نسخ القيم. الصقيها داخل CSS لتثبيت المواضع.');
+        });
+      };
     }
   })();
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
