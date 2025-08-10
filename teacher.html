@@ -50,7 +50,6 @@
       <button data-sec="classes">📘 الفصول</button>
       <button data-sec="students">👨‍🎓 الطلاب</button>
       <button data-sec="tests">🧪 إدخال التقييم</button>
-      <button onclick="window.location.href='evaluations.html'">📄 عرض التقييمات</button>
       <button onclick="auth.signOut().then(()=>location.href='index.html')">🚪 تسجيل الخروج</button>
     </aside>
 
@@ -60,9 +59,9 @@
   </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-  /* ----------------- ثوابت ----------------- */
-  const RUN_WIDTH = 5; // خانات العدّاد العام
+document.addEventListener('DOMContentLoaded', function(){
+  /* ===== ثوابت ===== */
+  const RUN_WIDTH = 5;
   const GENDER_CODE   = { male: '1', female: '2' };
   const RELIGION_CODE = { muslim: '1', christian: '2' };
   const CERT_PAGE = 'certificate.html';
@@ -70,13 +69,13 @@ document.addEventListener('DOMContentLoaded', () => {
   window.auth = firebase.auth();
   const db = firebase.firestore();
 
-  /* ----------------- حالة المستخدم ----------------- */
+  /* ===== حالة المستخدم ===== */
   let currentTeacherId = null;
   let currentTeacherName = '';
   let currentTeacherEmail = '';
   let currentTeacherSubject = '';
 
-  auth.onAuthStateChanged(async (user) => {
+  auth.onAuthStateChanged(async function(user){
     if (!user) { location.href = 'index.html'; return; }
     currentTeacherId = user.uid;
     currentTeacherEmail = user.email || '';
@@ -92,50 +91,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
     currentTeacherName = data.name || '';
     currentTeacherSubject = data.subject || '';
-    document.getElementById('teacher-name').textContent = `أ. ${currentTeacherName}`;
+    document.getElementById('teacher-name').textContent = 'أ. ' + currentTeacherName;
 
     document.querySelectorAll('.sidebar button[data-sec]')
-      .forEach(btn => btn.addEventListener('click', () => showSection(btn.dataset.sec)));
+      .forEach(function(btn){ btn.addEventListener('click', function(){ showSection(btn.dataset.sec); }); });
 
     showSection('profile');
   });
 
-  /* ----------------- تبديل الأقسام ----------------- */
-  function showSection(sec) {
+  /* ===== تبديل الأقسام ===== */
+  function showSection(sec){
     const main = document.getElementById('main-content');
     main.innerHTML = '';
 
     /* بياناتي */
     if (sec === 'profile') {
-      main.innerHTML = `
-        <h2>👤 بيانات المعلم</h2>
-        <div class="card">
-          <div class="row">
-            <label>الاسم الكامل:</label>
-            <input id="p-name" type="text" placeholder="اكتب اسمك">
+      main.innerHTML =
+        '<h2>👤 بيانات المعلم</h2>' +
+        '<div class="card">' +
+          '<div class="row">' +
+            '<label>الاسم الكامل:</label>' +
+            '<input id="p-name" type="text" placeholder="اكتب اسمك">' +
 
-            <label>المادة:</label>
-            <input id="p-subject" type="text" placeholder="مثال: التربية الإسلامية">
+            '<label>المادة:</label>' +
+            '<input id="p-subject" type="text" placeholder="مثال: التربية الإسلامية">' +
 
-            <label>رقم الهاتف:</label>
-            <input id="p-phone" type="tel" inputmode="tel" placeholder="01xxxxxxxxx">
+            '<label>رقم الهاتف:</label>' +
+            '<input id="p-phone" type="tel" inputmode="tel" placeholder="01xxxxxxxxx">' +
 
-            <label>النوع:</label>
-            <select id="p-gender">
-              <option value="male">ذكر</option>
-              <option value="female">أنثى</option>
-            </select>
+            '<label>النوع:</label>' +
+            '<select id="p-gender"><option value="male">ذكر</option><option value="female">أنثى</option></select>' +
 
-            <label>البريد الإلكتروني:</label>
-            <input id="p-email" type="email" disabled>
-          </div>
-          <div class="actions">
-            <button id="btn-save-profile" class="save-btn">💾 حفظ التعديلات</button>
-            <button id="btn-reset-pass" class="save-btn">🔒 إرسال رابط تغيير كلمة المرور</button>
-          </div>
-          <div class="note">يتم تحديث اسم المعلم أعلى القائمة مباشرة بعد الحفظ.</div>
-        </div>`;
-      requestAnimationFrame(() => {
+            '<label>البريد الإلكتروني:</label>' +
+            '<input id="p-email" type="email" disabled>' +
+          '</div>' +
+          '<div class="actions">' +
+            '<button id="btn-save-profile" class="save-btn">💾 حفظ التعديلات</button>' +
+            '<button id="btn-reset-pass" class="save-btn">🔒 إرسال رابط تغيير كلمة المرور</button>' +
+          '</div>' +
+          '<div class="note">يتم تحديث اسم المعلم أعلى القائمة مباشرة بعد الحفظ.</div>' +
+        '</div>';
+      requestAnimationFrame(function(){
         loadProfileForm();
         document.getElementById('btn-save-profile').addEventListener('click', saveProfileForm);
         document.getElementById('btn-reset-pass').addEventListener('click', sendResetEmail);
@@ -145,22 +141,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /* الفصول */
     if (sec === 'classes') {
-      main.innerHTML = `
-        <h2>📘 إدارة الفصول</h2>
-        <div class="row">
-          <select id="c-grade">
-            <option>الصف الأول</option><option>الصف الثاني</option><option>الصف الثالث</option>
-            <option>الصف الرابع</option><option>الصف الخامس</option><option>الصف السادس</option>
-          </select>
-          <select id="c-system"><option>عربي</option><option>لغات</option></select>
-          <select id="c-section"><option>A</option><option>B</option><option>C</option><option>D</option></select>
-          <button class="save-btn" id="btn-add-class">إضافة فصل</button>
-        </div>
-        <table id="classes-table">
-          <thead><tr><th>الصف</th><th>النظام</th><th>القسم</th><th>إجراء</th></tr></thead>
-          <tbody></tbody>
-        </table>`;
-      requestAnimationFrame(() => {
+      main.innerHTML =
+        '<h2>📘 إدارة الفصول</h2>' +
+        '<div class="row">' +
+          '<select id="c-grade">' +
+            '<option>الصف الأول</option><option>الصف الثاني</option><option>الصف الثالث</option>' +
+            '<option>الصف الرابع</option><option>الصف الخامس</option><option>الصف السادس</option>' +
+          '</select>' +
+          '<select id="c-system"><option>عربي</option><option>لغات</option></select>' +
+          '<select id="c-section"><option>A</option><option>B</option><option>C</option><option>D</option></select>' +
+          '<button class="save-btn" id="btn-add-class">إضافة فصل</button>' +
+        '</div>' +
+        '<table id="classes-table">' +
+          '<thead><tr><th>الصف</th><th>النظام</th><th>القسم</th><th>إجراء</th></tr></thead>' +
+          '<tbody></tbody>' +
+        '</table>';
+      requestAnimationFrame(function(){
         document.getElementById('btn-add-class').addEventListener('click', addClass);
         loadTeacherClasses();
       });
@@ -169,44 +165,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /* الطلاب */
     if (sec === 'students') {
-      main.innerHTML = `
-        <h2>👨‍🎓 إضافة/إدارة طلاب الفصل</h2>
-        <div class="row">
-          <select id="s-grade"></select>
-          <select id="s-system"></select>
-          <select id="s-section"></select>
-          <input id="s-name" placeholder="اسم الطالب">
-          <select id="s-gender"><option value="male">ذكر</option><option value="female">أنثى</option></select>
-          <select id="s-religion"><option value="muslim">مسلم</option><option value="christian">مسيحي</option></select>
+      main.innerHTML =
+        '<h2>👨‍🎓 إضافة/إدارة طلاب الفصل</h2>' +
+        '<div class="row">' +
+          '<select id="s-grade"></select>' +
+          '<select id="s-system"></select>' +
+          '<select id="s-section"></select>' +
+          '<input id="s-name" placeholder="اسم الطالب">' +
+          '<select id="s-gender"><option value="male">ذكر</option><option value="female">أنثى</option></select>' +
+          '<select id="s-religion"><option value="muslim">مسلم</option><option value="christian">مسيحي</option></select>' +
 
-          <button class="save-btn" id="btn-add-student">إضافة الطالب</button>
-          <button class="save-btn" id="btn-load-students">عرض طلاب الفصل</button>
+          '<button class="save-btn" id="btn-add-student">إضافة الطالب</button>' +
+          '<button class="save-btn" id="btn-load-students">عرض طلاب الفصل</button>' +
 
-          <button class="save-btn" id="btn-import-excel">⬆️ استيراد إكسل</button>
-          <button class="save-btn" id="btn-download-template">⬇️ تحميل قالب</button>
-          <input type="file" id="excel-file" accept=".xlsx,.xls,.csv" style="display:none">
+          '<button class="save-btn" id="btn-import-excel">⬆️ استيراد إكسل</button>' +
+          '<button class="save-btn" id="btn-download-template">⬇️ تحميل قالب</button>' +
+          '<input type="file" id="excel-file" accept=".xlsx,.xls,.csv" style="display:none">' +
 
-          <button class="save-btn" id="btn-export-xlsx">⬇️ تصدير (XLSX) — أسماء + أرقام الجلوس</button>
-          <button class="save-btn" id="btn-export-seats-pdf">🖨️ PDF أرقام الجلوس</button>
+          '<button class="save-btn" id="btn-export-xlsx">⬇️ تصدير (XLSX) — أسماء + أرقام الجلوس</button>' +
+          '<button class="save-btn" id="btn-export-seats-pdf">🖨️ PDF أرقام الجلوس</button>' +
 
-          <input type="search" id="student-search" placeholder="ابحث باسم الطالب..." list="students-list">
-          <datalist id="students-list"></datalist>
-        </div>
+          '<input type="search" id="student-search" placeholder="ابحث باسم الطالب..." list="students-list">' +
+          '<datalist id="students-list"></datalist>' +
+        '</div>' +
 
-        <div class="muted">
-          صيغة الاستيراد: <b>الاسم | الجنس | الديانة</b> (ذكر/أنثى، مسلم/مسيحي).<br>
-          رقم الجلوس يُنشأ تلقائيًا: [جنس][ديانة][${RUN_WIDTH} خانات].
-        </div>
+        '<div class="muted">صيغة الاستيراد: <b>الاسم | الجنس | الديانة</b> (ذكر/أنثى، مسلم/مسيحي).<br>' +
+        'رقم الجلوس يُنشأ تلقائيًا: [جنس][ديانة][' + RUN_WIDTH + ' خانات].</div>' +
 
-        <h3>📋 طلاب الفصل</h3>
-        <table id="students-table">
-          <thead><tr><th>الاسم</th><th>الجنس</th><th>الديانة</th><th>رقم الجلوس</th></tr></thead>
-          <tbody></tbody>
-        </table>`;
-      requestAnimationFrame(() => {
+        '<h3>📋 طلاب الفصل</h3>' +
+        '<table id="students-table">' +
+          '<thead><tr><th>الاسم</th><th>الجنس</th><th>الديانة</th><th>رقم الجلوس</th></tr></thead>' +
+          '<tbody></tbody>' +
+        '</table>';
+      requestAnimationFrame(function(){
         document.getElementById('btn-add-student').addEventListener('click', addStudent);
         document.getElementById('btn-load-students').addEventListener('click', loadStudentList);
-        document.getElementById('btn-import-excel').addEventListener('click', () => document.getElementById('excel-file').click());
+        document.getElementById('btn-import-excel').addEventListener('click', function(){ document.getElementById('excel-file').click(); });
         document.getElementById('excel-file').addEventListener('change', handleExcelFileSelect);
         document.getElementById('btn-download-template').addEventListener('click', downloadExcelTemplate);
         document.getElementById('btn-export-xlsx').addEventListener('click', exportStudentsXLSX);
@@ -218,55 +212,49 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /* التقييم */
     if (sec === 'tests') {
-      main.innerHTML = `
-        <h2>🧪 إدخال التقييم</h2>
-        <div class="form-grid" id="eval-form">
-          <label>الشهر:</label>
-          <select id="eval-month">
-            ${["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"].map(m => `<option>${m}</option>`).join('')}
-          </select>
+      var monthOptions = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر']
+        .map(function(m){ return '<option>'+m+'</option>'; }).join('');
+      main.innerHTML =
+        '<h2>🧪 إدخال التقييم</h2>' +
+        '<div class="form-grid" id="eval-form">' +
+          '<label>الشهر:</label>' +
+          '<select id="eval-month">' + monthOptions + '</select>' +
 
-          <label>الفصل:</label>
-          <select id="eval-class"></select>
+          '<label>الفصل:</label>' +
+          '<select id="eval-class"></select>' +
 
-          <label>الطالب:</label>
-          <select id="eval-student"></select>
+          '<label>الطالب:</label>' +
+          '<select id="eval-student"></select>' +
 
-          <label>اسم الطالب:</label>
-          <div id="stu-name" class="muted" style="text-align:right"></div>
+          '<label>اسم الطالب:</label>' +
+          '<div id="stu-name" class="muted" style="text-align:right"></div>' +
 
-          <label>اختبار (0-10):</label>
-          <input type="number" id="input-test" min="0" max="10">
+          '<label>اختبار (0-10):</label>' +
+          '<input type="number" id="input-test" min="0" max="10">' +
 
-          <label>واجب (0-10):</label>
-          <input type="number" id="input-home" min="0" max="10">
+          '<label>واجب (0-10):</label>' +
+          '<input type="number" id="input-home" min="0" max="10">' +
 
-          <label>مشاركة (0-10):</label>
-          <input type="number" id="input-part" min="0" max="10">
+          '<label>مشاركة (0-10):</label>' +
+          '<input type="number" id="input-part" min="0" max="10">' +
 
-          <label>سلوك (0-10):</label>
-          <input type="number" id="input-beh" value="10" min="0" max="10">
+          '<label>سلوك (0-10):</label>' +
+          '<input type="number" id="input-beh" value="10" min="0" max="10">' +
 
-          <div class="full" style="margin-top:8px">
-            <button class="save-btn" id="btn-save-eval" style="width:100%">💾 حفظ التقييم</button>
-          </div>
-        </div>
+          '<div class="full" style="margin-top:8px">' +
+            '<button class="save-btn" id="btn-save-eval" style="width:100%">💾 حفظ التقييم</button>' +
+          '</div>' +
+        '</div>' +
 
-        <h3 style="margin-top:16px">✅ تم إدخال التقييم (للفصل/الشهر الحاليين)</h3>
-        <table id="eval-summary-table" style="width:100%; margin-top:8px; display:none;">
-          <thead>
-            <tr>
-              <th>الاسم</th><th>اختبار</th><th>واجب</th><th>مشاركة</th>
-              <th>سلوك</th><th>المجموع</th><th>التقدير</th><th>شهادة</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>`;
-      requestAnimationFrame(() => {
+        '<h3 style="margin-top:16px">✅ تم إدخال التقييم (للفصل/الشهر الحاليين)</h3>' +
+        '<table id="eval-summary-table" style="width:100%; margin-top:8px; display:none;">' +
+          '<thead><tr>' +
+            '<th>الاسم</th><th>اختبار</th><th>واجب</th><th>مشاركة</th>' +
+            '<th>سلوك</th><th>المجموع</th><th>التقدير</th><th>شهادة</th>' +
+          '</tr></thead><tbody></tbody></table>';
+      requestAnimationFrame(function(){
         loadEvalClasses();
-        document.getElementById('eval-class').addEventListener('change', async () => {
-          await loadEvalStudents(); await showEvaluationSummary();
-        });
+        document.getElementById('eval-class').addEventListener('change', async function(){ await loadEvalStudents(); await showEvaluationSummary(); });
         document.getElementById('eval-month').addEventListener('change', showEvaluationSummary);
         document.getElementById('eval-student').addEventListener('change', updateStudentName);
         document.getElementById('btn-save-eval').addEventListener('click', submitEvaluation);
@@ -275,7 +263,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  /* ----------------- PROFILE ----------------- */
+  /* ===== PROFILE ===== */
   async function loadProfileForm(){
     try{
       const doc = await db.collection('users').doc(currentTeacherId).get();
@@ -302,7 +290,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       currentTeacherName = name;
       currentTeacherSubject = subject;
-      document.getElementById('teacher-name').textContent = `أ. ${currentTeacherName}`;
+      document.getElementById('teacher-name').textContent = 'أ. ' + currentTeacherName;
       alert('✔️ تم حفظ بياناتك');
     }catch(e){ console.error(e); alert('خطأ أثناء الحفظ'); }
   }
@@ -316,8 +304,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }catch(e){ alert('تعذّر الإرسال: ' + e.message); }
   }
 
-  /* ----------------- CLASSES ----------------- */
-  async function addClass() {
+  /* ===== CLASSES ===== */
+  async function addClass(){
     const grade = document.getElementById('c-grade').value;
     const system = document.getElementById('c-system').value;
     const section = document.getElementById('c-section').value;
@@ -326,62 +314,63 @@ document.addEventListener('DOMContentLoaded', () => {
       .where('teacher','==',currentTeacherId)
       .where('grade','==',grade)
       .where('system','==',system)
-      .where('section','==',section)
-      .get();
-    if (!existing.empty) { alert('⚠️ هذا الفصل مضاف مسبقاً'); return; }
+      .where('section','==',section).get();
 
+    if (!existing.empty) { alert('⚠️ هذا الفصل مضاف مسبقاً'); return; }
     await db.collection('classes').add({ grade, system, section, teacher: currentTeacherId });
     loadTeacherClasses();
   }
 
-  async function loadTeacherClasses() {
+  async function loadTeacherClasses(){
     const tbody = document.querySelector('#classes-table tbody');
     if (!tbody) return;
     tbody.innerHTML = '';
     const snap = await db.collection('classes').where('teacher','==',currentTeacherId).get();
-    snap.forEach((doc) => {
+    snap.forEach(function(doc){
       const d = doc.data();
-      tbody.innerHTML += `<tr><td>${d.grade}</td><td>${d.system}</td><td>${d.section}</td>
-        <td><button class="delete-btn" onclick="deleteClass('${doc.id}')">🗑️ حذف</button></td></tr>`;
+      tbody.innerHTML += '<tr><td>'+d.grade+'</td><td>'+d.system+'</td><td>'+d.section+'</td>'+
+        '<td><button class="delete-btn" onclick="deleteClass(\''+doc.id+'\')">🗑️ حذف</button></td></tr>';
     });
   }
 
-  async function deleteClass(classId) {
+  async function deleteClass(classId){
     await db.collection('classes').doc(classId).delete();
     loadTeacherClasses();
   }
 
-  /* ----------------- رقم الجلوس العام ----------------- */
-  async function ensureStudentsCounterDoc() {
+  /* ===== SEAT NUMBERS ===== */
+  async function ensureStudentsCounterDoc(){
     const ref = db.collection('counters').doc('students');
     const snap = await ref.get();
     if (!snap.exists) await ref.set({ next: 0 }, { merge: true });
     return ref;
   }
 
-  async function allocateRunNumbers(count) {
+  async function allocateRunNumbers(count){
     if (count <= 0) return [];
     const ref = await ensureStudentsCounterDoc();
-    const block = await db.runTransaction(async (tx) => {
+    const block = await db.runTransaction(async function(tx){
       const snap = await tx.get(ref);
       const data = snap.data() || { next: 0 };
       const start = Number(data.next) || 0;
       const newNext = start + count;
       tx.update(ref, { next: newNext });
-      const pad = (n) => String(n).padStart(RUN_WIDTH, '0');
-      return Array.from({ length: count }, (_, i) => pad(start + i + 1));
+      const pad = function(n){ return String(n).padStart(RUN_WIDTH, '0'); };
+      const arr = [];
+      for (var i=0;i<count;i++){ arr.push(pad(start + i + 1)); }
+      return arr;
     });
     return block;
   }
 
-  function buildSeatNumber(gender, religion, runStr) {
-    const g = GENDER_CODE[gender] ?? '0';
-    const r = RELIGION_CODE[religion] ?? '0';
-    return `${g}${r}${runStr}`;
+  function buildSeatNumber(gender, religion, runStr){
+    const g = GENDER_CODE[gender] || '0';
+    const r = RELIGION_CODE[religion] || '0';
+    return g + r + runStr;
   }
 
-  /* ----------------- STUDENTS ----------------- */
-  async function addStudent() {
+  /* ===== STUDENTS ===== */
+  async function addStudent(){
     const g = document.getElementById('s-grade').value;
     const s = document.getElementById('s-system').value;
     const c = document.getElementById('s-section').value;
@@ -391,8 +380,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!name||!g||!s||!c||!gender||!religion) { alert('❗ يرجى ملء جميع الحقول'); return; }
 
-    const duplicate = await db.collection('students')
-      .where('teacher','==',currentTeacherId).where('name','==',name).get();
+    const duplicate = await db.collection('students').where('teacher','==',currentTeacherId).where('name','==',name).get();
     if (!duplicate.empty) { alert('⚠️ الاسم موجود مسبقاً'); return; }
 
     const classSnap = await db.collection('classes')
@@ -400,13 +388,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (classSnap.empty) { alert('⚠️ الفصل غير موجود'); return; }
 
     const classId = classSnap.docs[0].id;
-    const [runStr] = await allocateRunNumbers(1);
-    const seatNumber = buildSeatNumber(gender, religion, runStr);
+    const block = await allocateRunNumbers(1);
+    const seatNumber = buildSeatNumber(gender, religion, block[0]);
 
-    await db.collection('students').add({
-      name, gender, religion, seatNumber, classId, teacher: currentTeacherId
-    });
-
+    await db.collection('students').add({ name, gender, religion, seatNumber, classId, teacher: currentTeacherId });
     displayStudents(classId);
     alert('✔️ تم إضافة الطالب وتخصيص رقم جلوس فريد');
     document.getElementById('s-name').value = '';
@@ -414,68 +399,63 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function setDefaultsForSelectors(){
     document.getElementById('s-grade').innerHTML =
-      `<option>الصف الأول</option><option>الصف الثاني</option><option>الصف الثالث</option>
-       <option>الصف الرابع</option><option>الصف الخامس</option><option>الصف السادس</option>`;
-    document.getElementById('s-system').innerHTML = `<option>عربي</option><option>لغات</option>`;
-    document.getElementById('s-section').innerHTML = `<option>A</option><option>B</option><option>C</option><option>D</option>`;
+      '<option>الصف الأول</option><option>الصف الثاني</option><option>الصف الثالث</option>' +
+      '<option>الصف الرابع</option><option>الصف الخامس</option><option>الصف السادس</option>';
+    document.getElementById('s-system').innerHTML = '<option>عربي</option><option>لغات</option>';
+    document.getElementById('s-section').innerHTML = '<option>A</option><option>B</option><option>C</option><option>D</option>';
   }
 
-  async function loadClassDropdowns() {
+  async function loadClassDropdowns(){
     setDefaultsForSelectors();
     const snap = await db.collection('classes').where('teacher','==',currentTeacherId).limit(1).get();
     if (!snap.empty) displayStudents(snap.docs[0].id);
   }
 
-  async function getSelectedClassWithLabel() {
+  async function getSelectedClassWithLabel(){
     const g = document.getElementById('s-grade').value;
     const s = document.getElementById('s-system').value;
     const c = document.getElementById('s-section').value;
 
     const snap = await db.collection('classes')
-      .where('grade','==',g).where('system','==',s).where('section','==',c)
-      .where('teacher','==',currentTeacherId).get();
+      .where('grade','==',g).where('system','==',s).where('section','==',c).where('teacher','==',currentTeacherId).get();
 
-    if (snap.empty) return { classId: null, label: `${g} - ${s} - ${c}` };
+    if (snap.empty) return { classId: null, label: g + ' - ' + s + ' - ' + c };
 
-    const doc = snap.docs[0];
-    const d = doc.data();
-    return { classId: doc.id, label: `${d.grade} - ${d.system} - ${d.section}` };
+    const doc = snap.docs[0]; const d = doc.data();
+    return { classId: doc.id, label: d.grade + ' - ' + d.system + ' - ' + d.section };
   }
 
-  async function loadStudentList() {
-    const { classId } = await getSelectedClassWithLabel();
-    if (!classId) { alert('⚠️ الفصل غير موجود'); return; }
-    displayStudents(classId);
+  async function loadStudentList(){
+    const sel = await getSelectedClassWithLabel();
+    if (!sel.classId) { alert('⚠️ الفصل غير موجود'); return; }
+    displayStudents(sel.classId);
 
     const list = document.getElementById('students-list');
     list.innerHTML = '';
-    const studentsSnap = await db.collection('students').where('classId','==',classId).orderBy('seatNumber').get();
-    studentsSnap.forEach((doc) => {
+    const studentsSnap = await db.collection('students').where('classId','==',sel.classId).orderBy('seatNumber').get();
+    studentsSnap.forEach(function(doc){
       const opt = document.createElement('option');
       opt.value = doc.data().name;
       list.appendChild(opt);
     });
   }
 
-  async function displayStudents(classId) {
+  async function displayStudents(classId){
     const tbody = document.querySelector('#students-table tbody');
     if (!tbody) return;
     tbody.innerHTML = '';
     const snap = await db.collection('students').where('classId','==',classId).orderBy('seatNumber').get();
-    snap.forEach((doc) => {
+    snap.forEach(function(doc){
       const d = doc.data();
-      tbody.innerHTML += `<tr>
-        <td style="text-align:right">${d.name}</td>
-        <td>${d.gender==='male'?'ذكر':'أنثى'}</td>
-        <td>${d.religion==='muslim'?'مسلم':'مسيحي'}</td>
-        <td>${d.seatNumber}</td></tr>`;
+      tbody.innerHTML += '<tr><td style="text-align:right">'+d.name+'</td><td>'+(d.gender==='male'?'ذكر':'أنثى')+
+        '</td><td>'+(d.religion==='muslim'?'مسلم':'مسيحي')+'</td><td>'+d.seatNumber+'</td></tr>';
     });
   }
 
   function readExcelFile(file){
-    return new Promise((resolve, reject) => {
+    return new Promise(function(resolve, reject){
       const reader = new FileReader();
-      reader.onload = (evt) => {
+      reader.onload = function(evt){
         try{
           const data = new Uint8Array(evt.target.result);
           const wb = XLSX.read(data, { type:'array' });
@@ -492,7 +472,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function downloadExcelTemplate(){
     const headers = ['الاسم','الجنس','الديانة'];
     const sample  = [['أحمد محمد','ذكر','مسلم'], ['مريم سامي','أنثى','مسيحي']];
-    const csv = [headers.join(','), ...sample.map(r=>r.join(','))].join('\n');
+    const csv = [headers.join(','), sample[0].join(','), sample[1].join(',')].join('\n');
     const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = 'قالب_الطلاب.csv';
@@ -500,30 +480,29 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function handleExcelFileSelect(e){
-    const file = e.target.files?.[0];
+    const file = e.target.files && e.target.files[0];
     if (!file) return;
 
-    const { classId, label } = await getSelectedClassWithLabel();
-    if (!classId) { alert('⚠️ الفصل غير موجود.'); e.target.value=''; return; }
+    const cls = await getSelectedClassWithLabel();
+    if (!cls.classId) { alert('⚠️ الفصل غير موجود.'); e.target.value=''; return; }
 
-    try {
+    try{
       const rows = await readExcelFile(file);
       if (!rows.length) { alert('⚠️ لا توجد بيانات صالحة في الملف'); e.target.value=''; return; }
 
-      const normalized = [];
-      const errors = [];
-      rows.forEach((r, idx) => {
-        const name = r['الاسم'] ?? r['Name'] ?? r['name'] ?? '';
-        const genderText = (r['الجنس'] ?? r['Gender'] ?? r['gender'] ?? '').toString().trim();
-        const religionText = (r['الديانة'] ?? r['Religion'] ?? r['religion'] ?? '').toString().trim();
-        if (!name || !genderText || !religionText) { errors.push(`السطر ${idx+2}: بيانات ناقصة`); return; }
+      const normalized = []; const errors = [];
+      rows.forEach(function(r, idx){
+        const name = r['الاسم'] || r['Name'] || r['name'] || '';
+        const genderText = String(r['الجنس'] || r['Gender'] || r['gender'] || '').trim();
+        const religionText = String(r['الديانة'] || r['Religion'] || r['religion'] || '').trim();
+        if (!name || !genderText || !religionText) { errors.push('السطر ' + (idx+2) + ': بيانات ناقصة'); return; }
         const gmap = { 'ذكر':'male','أنثى':'female','male':'male','female':'female','انثى':'female' };
         const rmap = { 'مسلم':'muslim','مسيحي':'christian','muslim':'muslim','christian':'christian' };
         const gender = gmap[genderText] || null;
         const religion = rmap[religionText] || null;
-        if (!gender) errors.push(`السطر ${idx+2}: قيمة الجنس غير صحيحة (${genderText})`);
-        if (!religion) errors.push(`السطر ${idx+2}: قيمة الديانة غير صحيحة (${religionText})`);
-        if (gender && religion) normalized.push({ name: String(name).trim(), gender, religion });
+        if (!gender) errors.push('السطر ' + (idx+2) + ': قيمة الجنس غير صحيحة ('+genderText+')');
+        if (!religion) errors.push('السطر ' + (idx+2) + ': قيمة الديانة غير صحيحة ('+religionText+')');
+        if (gender && religion) normalized.push({ name: String(name).trim(), gender: gender, religion: religion });
       });
 
       if (errors.length) {
@@ -531,108 +510,95 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!normalized.length) { e.target.value=''; return; }
       }
 
-      if (!confirm(`سيتم إضافة ${normalized.length} طالب/طالبة إلى الفصل: [ ${label} ]\nهل تريد المتابعة؟`)) { e.target.value=''; return; }
+      if (!confirm('سيتم إضافة '+normalized.length+' طالب/طالبة إلى الفصل: [ '+cls.label+' ]\nهل تريد المتابعة؟')) { e.target.value=''; return; }
 
       const runBlock = await allocateRunNumbers(normalized.length);
       const batch = db.batch();
-      normalized.forEach((st, i) => {
+      normalized.forEach(function(st, i){
         const seatNumber = buildSeatNumber(st.gender, st.religion, runBlock[i]);
         const ref = db.collection('students').doc();
-        batch.set(ref, { name: st.name, gender: st.gender, religion: st.religion, seatNumber, classId, teacher: currentTeacherId });
+        batch.set(ref, { name: st.name, gender: st.gender, religion: st.religion, seatNumber: seatNumber, classId: cls.classId, teacher: currentTeacherId });
       });
 
       await batch.commit();
       alert('✔️ تم الاستيراد وتخصيص أرقام الجلوس');
-      displayStudents(classId);
+      displayStudents(cls.classId);
       e.target.value = '';
-    } catch (err) {
+    }catch(err){
       console.error(err);
-      alert('❗ خطأ أثناء قراءة الملف.'); e.target.value = '';
+      alert('❗ خطأ أثناء قراءة الملف.');
+      e.target.value = '';
     }
   }
 
-  /* ----------------- EXPORTS ----------------- */
+  /* ===== EXPORTS ===== */
   async function fetchStudentsOfSelectedClass(){
-    const { classId, label } = await getSelectedClassWithLabel();
-    if (!classId) throw new Error('الفصل غير موجود');
-    const snap = await db.collection('students').where('classId','==',classId).orderBy('seatNumber').get();
-    const rows = snap.docs.map(d => ({ id:d.id, ...d.data() }));
-    return { classId, label, rows };
+    const sel = await getSelectedClassWithLabel();
+    if (!sel.classId) throw new Error('الفصل غير موجود');
+    const snap = await db.collection('students').where('classId','==',sel.classId).orderBy('seatNumber').get();
+    const rows = snap.docs.map(function(d){ return Object.assign({ id:d.id }, d.data()); });
+    return { classId: sel.classId, label: sel.label, rows: rows };
   }
 
   async function exportStudentsXLSX(){
     try{
-      const { label, rows } = await fetchStudentsOfSelectedClass();
-      if (!rows.length){ alert('لا يوجد طلاب في هذا الفصل'); return; }
+      const out = await fetchStudentsOfSelectedClass();
+      if (!out.rows.length){ alert('لا يوجد طلاب في هذا الفصل'); return; }
       const headers = ['الاسم','رقم الجلوس','الجنس','الديانة','الفصل'];
-      const mapGender = g => g==='male'?'ذكر':'أنثى';
-      const mapRel = r => r==='muslim'?'مسلم':'مسيحي';
+      const mapGender = function(g){ return g==='male'?'ذكر':'أنثى'; };
+      const mapRel = function(r){ return r==='muslim'?'مسلم':'مسيحي'; };
       const g = document.getElementById('s-grade').value;
       const s = document.getElementById('s-system').value;
       const c = document.getElementById('s-section').value;
-      const klass = `${g} - ${s} - ${c}`;
-      const data = rows.map(r => [r.name, r.seatNumber, mapGender(r.gender), mapRel(r.religion), klass]);
-      const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
+      const klass = g + ' - ' + s + ' - ' + c;
+      const data = out.rows.map(function(r){ return [r.name, r.seatNumber, mapGender(r.gender), mapRel(r.religion), klass]; });
+      const ws = XLSX.utils.aoa_to_sheet([headers].concat(data));
       const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'students');
-      XLSX.writeFile(wb, `طلاب_${klass.replaceAll(' ','')}.xlsx`, { compression:true });
+      XLSX.writeFile(wb, 'طلاب_'+klass.replace(/ /g,'')+'.xlsx', { compression:true });
     }catch(e){ console.error(e); alert('تعذّر التصدير'); }
   }
 
   async function downloadSeatsPDF(){
     try{
-      const { label, rows } = await fetchStudentsOfSelectedClass();
-      if (!rows.length){ alert('لا يوجد طلاب في هذا الفصل'); return; }
-      const mapGender = g => g==='male'?'ذكر':'أنثى';
-      const mapRel = r => r==='muslim'?'مسلم':'مسيحي';
+      const out = await fetchStudentsOfSelectedClass();
+      if (!out.rows.length){ alert('لا يوجد طلاب في هذا الفصل'); return; }
+      const mapGender = function(g){ return g==='male'?'ذكر':'أنثى'; };
+      const mapRel = function(r){ return r==='muslim'?'مسلم':'مسيحي'; };
 
-      const html = `
-<!DOCTYPE html><html lang="ar" dir="rtl"><head>
-<meta charset="utf-8"><title>أرقام الجلوس - ${label}</title>
-<style>
-  @page{ size: A4 portrait; margin: 12mm; }
-  body{ font-family: "Segoe UI", Tahoma, Arial; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-  h2{ text-align:center; margin:0 0 8px; }
-  .muted{ text-align:center; color:#555; margin-bottom:10px }
-  table{ width:100%; border-collapse:collapse; font-size:13px }
-  th,td{ border:1px solid #dfe3e7; padding:6px 8px; text-align:center }
-  th{ background:#f2f5f7 }
-  .footer{ margin-top:12px; display:flex; justify-content:space-between; font-size:12px; color:#555 }
-</style>
-</head><body>
-  <h2>كشف أرقام الجلوس</h2>
-  <div class="muted">${label}</div>
-  <table>
-    <thead><tr><th>الاسم</th><th>رقم الجلوس</th><th>الجنس</th><th>الديانة</th></tr></thead>
-    <tbody>
-      ${rows.map(r => `<tr>
-        <td style="text-align:right">${r.name}</td>
-        <td>${r.seatNumber}</td>
-        <td>${mapGender(r.gender)}</td>
-        <td>${mapRel(r.religion)}</td>
-      </tr>`).join('')}
-    </tbody>
-  </table>
-  <div class="footer"><div>التاريخ: ${new Date().toLocaleDateString('ar-EG')}</div><div>المعلم: أ. ${currentTeacherName||''}</div></div>
-<script>setTimeout(()=>window.print(),400);</script>
-</body></html>`;
-      const win = window.open('', '_blank'); win.document.open(); win.document.write(html); win.document.close();
+      var rowsHtml = out.rows.map(function(r){
+        return '<tr><td style="text-align:right">'+r.name+'</td><td>'+r.seatNumber+'</td><td>'+mapGender(r.gender)+'</td><td>'+mapRel(r.religion)+'</td></tr>';
+      }).join('');
+
+      var html = '<!DOCTYPE html><html lang="ar" dir="rtl"><head>' +
+      '<meta charset="utf-8"><title>أرقام الجلوس - '+out.label+'</title>' +
+      '<style>@page{ size: A4 portrait; margin: 12mm; } body{ font-family: \\"Segoe UI\\", Tahoma, Arial; -webkit-print-color-adjust:exact; print-color-adjust:exact; }' +
+      'h2{ text-align:center; margin:0 0 8px; } .muted{ text-align:center; color:#555; margin-bottom:10px }' +
+      'table{ width:100%; border-collapse:collapse; font-size:13px } th,td{ border:1px solid #dfe3e7; padding:6px 8px; text-align:center } th{ background:#f2f5f7 }' +
+      '.footer{ margin-top:12px; display:flex; justify-content:space-between; font-size:12px; color:#555 }</style></head><body>' +
+      '<h2>كشف أرقام الجلوس</h2><div class="muted">'+out.label+'</div>' +
+      '<table><thead><tr><th>الاسم</th><th>رقم الجلوس</th><th>الجنس</th><th>الديانة</th></tr></thead><tbody>' +
+      rowsHtml + '</tbody></table>' +
+      '<div class="footer"><div>التاريخ: '+new Date().toLocaleDateString('ar-EG')+'</div><div>المعلم: أ. '+(currentTeacherName||'')+'</div></div>' +
+      '<script>setTimeout(function(){window.print()},400);<\/script></body></html>';
+
+      var win = window.open('', '_blank'); win.document.open(); win.document.write(html); win.document.close();
     }catch(e){ console.error(e); alert('تعذّر إنشاء PDF'); }
   }
 
-  /* ----------------- EVALUATIONS ----------------- */
+  /* ===== EVALUATIONS ===== */
   function openCertificateForStudent(studentName){
     const month = document.getElementById('eval-month').value;
     const year  = new Date().getFullYear();
-    const classText = document.getElementById('eval-class').selectedOptions[0]?.textContent || '';
+    const classText = document.getElementById('eval-class').selectedOptions[0] ? document.getElementById('eval-class').selectedOptions[0].textContent : '';
     const q = new URLSearchParams({
       name: studentName,
-      month,
+      month: month,
       year: String(year),
       klass: classText,
-      teacher: `أ. ${currentTeacherName || ''}`,
+      teacher: 'أ. ' + (currentTeacherName || ''),
       subject: currentTeacherSubject || ''
     });
-    const url = `${CERT_PAGE}?${q.toString()}`;
+    const url = CERT_PAGE + '?' + q.toString();
     const win = window.open(url, '_blank', 'noopener');
     if (!win) {
       const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener';
@@ -640,24 +606,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  async function loadEvalClasses() {
+  async function loadEvalClasses(){
     const sel = document.getElementById('eval-class');
     sel.innerHTML = '';
     const snap = await db.collection('classes').where('teacher', '==', currentTeacherId).get();
-    snap.forEach((doc) => {
+    snap.forEach(function(doc){
       const d = doc.data();
       const opt = document.createElement('option');
-      opt.value = doc.id; opt.textContent = `${d.grade} - ${d.system} - ${d.section}`;
+      opt.value = doc.id; opt.textContent = d.grade + ' - ' + d.system + ' - ' + d.section;
       sel.appendChild(opt);
     });
     if (snap.docs.length) { await loadEvalStudents(); await showEvaluationSummary(); }
   }
 
-  async function loadEvalStudents() {
+  async function loadEvalStudents(){
     const classId = document.getElementById('eval-class').value;
     const sel = document.getElementById('eval-student'); sel.innerHTML = '';
     const snap = await db.collection('students').where('classId', '==', classId).orderBy('seatNumber').get();
-    snap.forEach((doc) => {
+    snap.forEach(function(doc){
       const opt = document.createElement('option');
       opt.value = doc.id; opt.textContent = doc.data().name;
       sel.appendChild(opt);
@@ -665,7 +631,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateStudentName();
   }
 
-  async function updateStudentName() {
+  async function updateStudentName(){
     const studentId = document.getElementById('eval-student').value;
     const span = document.getElementById('stu-name');
     if (!studentId) { span.textContent = ''; return; }
@@ -673,15 +639,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (doc.exists) span.textContent = doc.data().name;
   }
 
-  async function submitEvaluation() {
+  async function submitEvaluation(){
     const classId = document.getElementById('eval-class').value;
     const studentId = document.getElementById('eval-student').value;
     const month = document.getElementById('eval-month').value;
     const year = new Date().getFullYear();
-    const test = parseInt(document.getElementById('input-test').value) || 0;
-    const home = parseInt(document.getElementById('input-home').value) || 0;
-    const part = parseInt(document.getElementById('input-part').value) || 0;
-    const beh  = parseInt(document.getElementById('input-beh').value)  || 0;
+    const test = parseInt(document.getElementById('input-test').value,10) || 0;
+    const home = parseInt(document.getElementById('input-home').value,10) || 0;
+    const part = parseInt(document.getElementById('input-part').value,10) || 0;
+    const beh  = parseInt(document.getElementById('input-beh').value,10)  || 0;
     const total = test + home + part + beh;
 
     if (!studentId || !classId || !month) { alert('⚠️ تأكد من إدخال جميع البيانات'); return; }
@@ -694,8 +660,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const name = studentDoc.exists ? (studentDoc.data().name || 'طالب') : 'طالب';
 
     await db.collection('evaluations').add({
-      classId, studentId, teacher: currentTeacherId,
-      name, test, home, part, beh, total, month, year
+      classId: classId, studentId: studentId, teacher: currentTeacherId,
+      name: name, test: test, home: home, part: part, beh: beh, total: total, month: month, year: year
     });
 
     await showEvaluationSummary();
@@ -707,7 +673,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  async function showEvaluationSummary() {
+  async function showEvaluationSummary(){
     const classId = document.getElementById('eval-class').value;
     const month = document.getElementById('eval-month').value;
     const table = document.getElementById('eval-summary-table');
@@ -721,36 +687,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (snap.empty) { table.style.display = 'none'; return; }
 
-    snap.forEach((doc) => {
+    snap.forEach(function(doc){
       const d = doc.data();
       const totalNum = Number(d.total);
       const testMark = (d.test === 0) ? 'غ' : d.test;
 
-      let evaluation = '';
+      var evaluation = '';
       if (d.test === 0) evaluation = 'غياب';
       else if (totalNum === 40) evaluation = 'ممتاز مع الشكر';
       else if (totalNum >= 36) evaluation = 'ممتاز';
       else evaluation = 'يرجى تشجيع الطفل لرفع مستواه';
 
       const certCell = (totalNum === 40)
-        ? `<button type="button" class="btn-cert cert-btn" data-name="${d.name}">🏆 شهادة</button>`
+        ? '<button type="button" class="btn-cert cert-btn" data-name="'+d.name+'">🏆 شهادة</button>'
         : '—';
 
-      tbody.innerHTML += `
-        <tr>
-          <td style="text-align:right">${d.name}</td>
-          <td>${testMark}</td>
-          <td>${d.home}</td>
-          <td>${d.part}</td>
-          <td>${d.beh}</td>
-          <td>${totalNum}</td>
-          <td>${evaluation}</td>
-          <td>${certCell}</td>
-        </tr>`;
+      tbody.innerHTML += '<tr>' +
+        '<td style="text-align:right">'+d.name+'</td>' +
+        '<td>'+testMark+'</td>' +
+        '<td>'+d.home+'</td>' +
+        '<td>'+d.part+'</td>' +
+        '<td>'+d.beh+'</td>' +
+        '<td>'+totalNum+'</td>' +
+        '<td>'+evaluation+'</td>' +
+        '<td>'+certCell+'</td>' +
+      '</tr>';
     });
 
     table.style.display = '';
-    table.querySelector('tbody').onclick = (e) => {
+    table.querySelector('tbody').onclick = function(e){
       const btn = e.target.closest('.cert-btn');
       if (!btn) return;
       e.preventDefault();
@@ -758,7 +723,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
-  /* expose for inline onclick deleteClass */
+  // expose deleteClass
   window.deleteClass = deleteClass;
 });
 </script>
