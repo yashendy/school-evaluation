@@ -83,7 +83,7 @@
     const db   = firebase.firestore();
 
     let currentTeacherId = null;
-    let currentTeacherName = ''; // اسم المعلمة لطباعات النتائج
+    let currentTeacherName = '';
     let cachedRows = [];
     let cachedStudents = [];
 
@@ -112,13 +112,8 @@
     async function loadTeacherClasses() {
       const sel = document.getElementById('class-select');
       sel.innerHTML = '';
-      const snap = await db.collection('classes')
-        .where('teacher','==',currentTeacherId).get();
-
-      if (snap.empty) {
-        sel.innerHTML = '<option value="">لا توجد فصول مسندة</option>';
-        return;
-      }
+      const snap = await db.collection('classes').where('teacher','==',currentTeacherId).get();
+      if (snap.empty) { sel.innerHTML = '<option value="">لا توجد فصول مسندة</option>'; return; }
       snap.forEach(d => {
         const c = d.data();
         const opt = document.createElement('option');
@@ -139,6 +134,11 @@
     }
     function getSelectedClassText(){
       return document.getElementById('class-select').selectedOptions[0]?.textContent || '';
+    }
+    function hasAnyScores(rows){
+      return rows.some(r =>
+        r.test!=='' || r.home!=='' || r.part!=='' || r.beh!=='' || r.total!=='' || r.grade!==''
+      );
     }
 
     // ===== Search & render table =====
@@ -205,17 +205,16 @@
       });
     }
 
-    // ===== Build printable HTML (footer logic per mode) =====
-    function buildPrintableHTML({year, month, classText, rows, blank=false, teacherName=''}) {
+    // ===== Build printable HTML (footer switch) =====
+    function buildPrintableHTML({year, month, classText, rows, mode='results', teacherName=''}) {
       const monthPart = month
         ? `نتيجة اختبارات مادة التربية الإسلامية لشهر ${month} لسنة ${year}`
         : `نتيجة اختبارات مادة التربية الإسلامية لسنة ${year}`;
 
       const logoUrl = new URL('logo.png', location.href).href;
 
-      // التذييل: للنسخة الفارغة يظهر سطرين: يمين "مع تحيات/ أ. ولاء حماد" + شمال "معلمة المادة/"
-      // للنسخة بالنتائج يظهر: يمين "مع تحيات/ أ.ولاء حماد" + شمال "معلمة المادة/ أ.<اسم المعلمة>"
-      const footerHTML = blank
+      // modes: 'blank' => لا اسم معلمة. 'results' => باسم المعلمة.
+      const footerHTML = (mode === 'blank')
         ? `
           <div class="right">مع تحيات/ أ. ولاء حماد</div>
           <div class="left">معلمة المادة/ </div>
@@ -224,6 +223,8 @@
           <div class="right">مع تحيات/ أ.ولاء حماد</div>
           <div class="left">معلمة المادة/ أ.${teacherName || 'خديجة خالد جودة'}</div>
         `;
+
+      const blankCells = (mode === 'blank');
 
       return `
 <!DOCTYPE html>
@@ -273,12 +274,12 @@
       ${rows.map(r => `
         <tr>
           <td>${r.name ?? ''}</td>
-          <td>${blank ? '' : (r.test === 0 ? '-' : (r.test ?? ''))}</td>
-          <td>${blank ? '' : (r.test === 0 ? '-' : (r.home ?? ''))}</td>
-          <td>${blank ? '' : (r.test === 0 ? '-' : (r.part ?? ''))}</td>
-          <td>${blank ? '' : (r.test === 0 ? '-' : (r.beh  ?? ''))}</td>
-          <td>${blank ? '' : (r.test === 0 ? '-' : (r.total?? ''))}</td>
-          <td>${blank ? '' : (r.grade ?? '')}</td>
+          <td>${blankCells ? '' : (r.test === 0 ? '-' : (r.test ?? ''))}</td>
+          <td>${blankCells ? '' : (r.test === 0 ? '-' : (r.home ?? ''))}</td>
+          <td>${blankCells ? '' : (r.test === 0 ? '-' : (r.part ?? ''))}</td>
+          <td>${blankCells ? '' : (r.test === 0 ? '-' : (r.beh  ?? ''))}</td>
+          <td>${blankCells ? '' : (r.test === 0 ? '-' : (r.total?? ''))}</td>
+          <td>${blankCells ? '' : (r.grade ?? '')}</td>
         </tr>
       `).join('')}
     </tbody>
@@ -289,7 +290,6 @@
   </div>
 
   <script>
-    // اطبع تلقائياً ثم أغلق النافذة بعد الطباعة
     window.addEventListener('load', () => {
       window.print();
       setTimeout(() => window.close(), 300);
@@ -307,12 +307,15 @@
 
       const rows = blank ? cachedRows.map(r => ({ name:r.name })) : cachedRows;
 
+      // لو زر النتائج لكن مفيش أي درجات -> نعتبرها "blank" للتذييل
+      const mode = blank ? 'blank' : (hasAnyScores(cachedRows) ? 'results' : 'blank');
+
       const html = buildPrintableHTML({
         year,
         month: blank ? '' : month,
         classText: klass,
         rows,
-        blank,
+        mode,
         teacherName: currentTeacherName
       });
 
@@ -320,14 +323,12 @@
         const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
         const url  = URL.createObjectURL(blob);
 
-        // محاولة فتح في تبويب جديد كرابط (أكثر قبولاً)
         const a = document.createElement('a');
         a.href = url; a.target = '_blank'; a.rel = 'noopener';
         document.body.appendChild(a);
         a.click();
         a.remove();
 
-        // فfallback: لو اتحظر، افتح في نفس التبويب
         setTimeout(() => {
           if (document.visibilityState === 'visible') window.location.href = url;
         }, 700);
@@ -343,12 +344,12 @@
     document.getElementById('search-btn').addEventListener('click', searchAndRender);
     document.getElementById('pdf-filled-btn').addEventListener('click', () => {
       if (!cachedRows.length) return alert('اعمل بحث أولاً لعرض الجدول');
-      openPrint({blank:false});   // يظهر اسم المعلمة + "مع تحيات/ أ.ولاء حماد"
+      openPrint({blank:false});   // تذييل نتائج: باسم المعلمة إن وُجدت درجات، وإلا تذييل فارغ
     });
     document.getElementById('pdf-blank-btn').addEventListener('click', async () => {
       if (!cachedRows.length) await searchAndRender();
       if (!cachedRows.length) return;
-      openPrint({blank:true});    // يمين: "مع تحيات/ أ. ولاء حماد" + شمال: "معلمة المادة/" فقط
+      openPrint({blank:true});    // تذييل الصفحة الفارغة دومًا
     });
   </script>
 </body>
