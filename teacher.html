@@ -11,22 +11,23 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
   <script src="firebase-config.js"></script>
 
-  <!-- SheetJS لقراءة/توليد ملفات إكسل -->
+  <!-- SheetJS لقراءة ملفات إكسل -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <style>
+    :root{ color-scheme: light; }
     body { margin:0; padding:0; font-family: Arial, sans-serif; background:#f0f2f5; }
     .main-container { display:flex; min-height:100vh; }
-    .sidebar { width:220px; background:#add8e6; color:#fff; padding:20px; box-sizing:border-box; }
+    .sidebar { width:230px; background:#add8e6; color:#fff; padding:20px; box-sizing:border-box; }
     .sidebar img { width:100%; margin-bottom:20px; }
     .sidebar h3 { margin:10px 0; font-size:18px; color:#002b36; }
     .sidebar button { display:block; width:100%; padding:10px; margin-bottom:10px; background:#444; border:none; color:#fff; cursor:pointer; text-align:right; border-radius:6px; }
     .content { flex:1; background:#fff; padding:20px; box-sizing:border-box; }
     .save-btn, .delete-btn { padding:6px 10px; margin:5px; cursor:pointer; border-radius:6px; border:1px solid #ccc; background:#f7f7f7; }
     table { width:100%; border-collapse:collapse; margin-top:12px; }
-    th,td { border:1px solid #dfe3e7; padding:8px; text-align:center; }
+    th,td { border:1px solid #dfe3e7; padding:8px; text-align:center; font-size:14px }
     th { background:#f2f5f7; }
-    input, select { padding:8px; border:1px solid #d0d7de; border-radius:6px; }
+    input, select { padding:10px; border:1px solid #d0d7de; border-radius:8px; font-size:14px }
     .row { display:grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); gap:10px; align-items:center; margin:8px 0; }
     .muted { color:#666; font-size:13px; margin-top:6px; }
 
@@ -44,6 +45,11 @@
 
     .btn-cert{ background:#2e7d32; color:#fff; border:0; border-radius:8px; padding:6px 10px; cursor:pointer; }
     .btn-cert[disabled]{opacity:.35; cursor:not-allowed}
+
+    /* قسم بياناتي */
+    .card{ background:#f8f9fa; border:1px solid #e9ecef; border-radius:12px; padding:16px; max-width:780px }
+    .actions{ display:flex; gap:10px; flex-wrap:wrap; margin-top:8px }
+    .note{ font-size:13px; color:#556; margin-top:6px }
   </style>
 </head>
 <body>
@@ -51,6 +57,7 @@
     <aside class="sidebar">
       <img src="logo.png" alt="Logo">
       <h3 id="teacher-name">جاري التحميل...</h3>
+      <button data-sec="profile">👤 بياناتي</button>
       <button data-sec="classes">📘 الفصول</button>
       <button data-sec="students">👨‍🎓 الطلاب</button>
       <button data-sec="tests">🧪 إدخال التقييم</button>
@@ -66,24 +73,25 @@
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       // ===== إعدادات رقم الجلوس =====
-      const RUN_WIDTH = 5; // عدّاد عام 5 خانات
-      const GENDER_CODE   = { male: '1', female: '2' }; // ذكر=1، أنثى=2
-      const RELIGION_CODE = { muslim: '1', christian: '2' }; // مسلم=1، مسيحي=2
+      const RUN_WIDTH = 5; // عدد خانات العدّاد العام
+      const GENDER_CODE   = { male: '1', female: '2' };
+      const RELIGION_CODE = { muslim: '1', christian: '2' };
 
-      // اسم صفحة الشهادة
       const CERT_PAGE = 'certificate.html';
 
-      // Firebase
       window.auth = firebase.auth();
       const db = firebase.firestore();
 
       let currentTeacherId = null;
       let currentTeacherName = '';
+      let currentTeacherEmail = '';
+      let currentTeacherSubject = '';
 
       /* تسجيل الدخول والتحقق من صلاحية المعلم */
       auth.onAuthStateChanged(async (user) => {
         if (!user) { location.href = 'index.html'; return; }
         currentTeacherId = user.uid;
+        currentTeacherEmail = user.email || '';
 
         const userDoc = await db.collection('users').doc(currentTeacherId).get();
         const data = userDoc.data();
@@ -95,18 +103,61 @@
         }
 
         currentTeacherName = data.name || '';
+        currentTeacherSubject = data.subject || '';
         document.getElementById('teacher-name').textContent = `أ. ${currentTeacherName}`;
+
         document.querySelectorAll('.sidebar button[data-sec]').forEach((btn) => {
           btn.addEventListener('click', () => showSection(btn.dataset.sec));
         });
 
-        showSection('classes');
+        // افتحي على "بياناتي" أولاً مرة واحدة
+        showSection('profile');
       });
 
       /* تغيير الأقسام */
       function showSection(sec) {
         const main = document.getElementById('main-content');
         main.innerHTML = '';
+
+        /* ---- 👤 بياناتي ---- */
+        if (sec === 'profile') {
+          main.innerHTML = `
+            <h2>👤 بيانات المعلم</h2>
+            <div class="card">
+              <div class="row">
+                <label>الاسم الكامل:</label>
+                <input id="p-name" type="text" placeholder="اكتب اسمك" />
+
+                <label>المادة:</label>
+                <input id="p-subject" type="text" placeholder="مثال: التربية الإسلامية" />
+
+                <label>رقم الهاتف:</label>
+                <input id="p-phone" type="tel" inputmode="tel" placeholder="01xxxxxxxxx" />
+
+                <label>النوع:</label>
+                <select id="p-gender">
+                  <option value="male">ذكر</option>
+                  <option value="female">أنثى</option>
+                </select>
+
+                <label>البريد الإلكتروني:</label>
+                <input id="p-email" type="email" disabled />
+              </div>
+
+              <div class="actions">
+                <button id="btn-save-profile" class="save-btn">💾 حفظ التعديلات</button>
+                <button id="btn-reset-pass" class="save-btn">🔒 تغيير كلمة المرور (إرسال إيميل)</button>
+              </div>
+              <div class="note">ملاحظة: زر تغيير كلمة المرور سيرسل رسالة إلى بريدك لإعادة التعيين.</div>
+            </div>
+          `;
+          requestAnimationFrame(() => {
+            loadProfileForm();
+            document.getElementById('btn-save-profile').addEventListener('click', saveProfileForm);
+            document.getElementById('btn-reset-pass').addEventListener('click', sendResetEmail);
+          });
+          return;
+        }
 
         /* ---- إدارة الفصول ---- */
         if (sec === 'classes') {
@@ -147,16 +198,15 @@
               <button class="save-btn" id="btn-add-student">إضافة الطالب</button>
               <button class="save-btn" id="btn-load-students">عرض طلاب الفصل</button>
 
-              <!-- استيراد/تصدير -->
+              <!-- استيراد إكسل + قالب -->
               <button class="save-btn" id="btn-import-excel">⬆️ استيراد إكسل</button>
-              <button class="save-btn" id="btn-download-template">⬇️ تحميل قالب (XLSX)</button>
-              <button class="save-btn" id="btn-export-class">⬇️ تصدير طلاب الفصل (XLSX)</button>
+              <button class="save-btn" id="btn-download-template">⬇️ تحميل قالب</button>
               <input type="file" id="excel-file" accept=".xlsx,.xls,.csv" style="display:none" />
 
               <input type="search" id="student-search" placeholder="ابحث باسم الطالب..." list="students-list" />
               <datalist id="students-list"></datalist>
             </div>
-            <div class="muted">صيغة القالب: <b>الاسم | الجنس | الديانة</b> (بالعربي). القيم: الجنس = ذكر/أنثى، الديانة = مسلم/مسيحي.
+            <div class="muted">صيغة الإكسل المطلوبة: <b>الاسم | الجنس | الديانة</b> (بالعربي). القيم: الجنس = ذكر/أنثى، الديانة = مسلم/مسيحي.
               <br>رقم الجلوس يُنشأ تلقائيًا: [جنس][ديانة][${RUN_WIDTH} خانات متسلسلة عامة].
             </div>
 
@@ -169,13 +219,9 @@
           requestAnimationFrame(() => {
             document.getElementById('btn-add-student').addEventListener('click', addStudent);
             document.getElementById('btn-load-students').addEventListener('click', loadStudentList);
-
             document.getElementById('btn-import-excel').addEventListener('click', () => document.getElementById('excel-file').click());
             document.getElementById('excel-file').addEventListener('change', handleExcelFileSelect);
-
             document.getElementById('btn-download-template').addEventListener('click', downloadExcelTemplate);
-            document.getElementById('btn-export-class').addEventListener('click', exportCurrentClassStudents);
-
             loadClassDropdowns();
           });
           return;
@@ -242,6 +288,54 @@
         }
       }
 
+      /* ====== PROFILE (بياناتي) ====== */
+      async function loadProfileForm(){
+        try{
+          const doc = await db.collection('users').doc(currentTeacherId).get();
+          const d = doc.data() || {};
+          document.getElementById('p-name').value    = d.name || '';
+          document.getElementById('p-subject').value = d.subject || '';
+          document.getElementById('p-phone').value   = d.phone || '';
+          document.getElementById('p-gender').value  = (d.gender==='female'?'female':'male');
+          document.getElementById('p-email').value   = currentTeacherEmail || d.email || '';
+        }catch(e){
+          alert('تعذّر تحميل بياناتك.'); console.error(e);
+        }
+      }
+
+      async function saveProfileForm(){
+        const name    = document.getElementById('p-name').value.trim();
+        const subject = document.getElementById('p-subject').value.trim();
+        const phone   = document.getElementById('p-phone').value.trim();
+        const gender  = document.getElementById('p-gender').value;
+
+        if (!name){ alert('يرجى كتابة الاسم.'); return; }
+
+        try{
+          await db.collection('users').doc(currentTeacherId).set({
+            name, subject, phone, gender, type:'teacher'
+          }, { merge:true });
+
+          currentTeacherName = name;
+          currentTeacherSubject = subject;
+          document.getElementById('teacher-name').textContent = `أ. ${currentTeacherName}`;
+          alert('✔️ تم حفظ بياناتك بنجاح');
+        }catch(e){
+          alert('حدث خطأ أثناء الحفظ'); console.error(e);
+        }
+      }
+
+      async function sendResetEmail(){
+        try{
+          const email = currentTeacherEmail || document.getElementById('p-email').value;
+          if (!email){ alert('لا يوجد بريد مسجل.'); return; }
+          await auth.sendPasswordResetEmail(email);
+          alert('📧 تم إرسال رابط تغيير كلمة المرور إلى بريدك.');
+        }catch(e){
+          alert('تعذّر إرسال رسالة إعادة التعيين: ' + e.message);
+        }
+      }
+
       /* ====== CLASSES ====== */
       async function addClass() {
         const grade = document.getElementById('c-grade').value;
@@ -276,7 +370,7 @@
         loadTeacherClasses();
       }
 
-      /* ====== عدّاد عام لأرقام الجلوس ====== */
+      /* ====== أداة رقم الجلوس الفريد على مستوى المدرسة ====== */
       async function ensureStudentsCounterDoc() {
         const ref = db.collection('counters').doc('students');
         const snap = await ref.get();
@@ -289,18 +383,16 @@
       async function allocateRunNumbers(count) {
         if (count <= 0) return [];
         const ref = await ensureStudentsCounterDoc();
-
         const block = await db.runTransaction(async (tx) => {
           const snap = await tx.get(ref);
           const data = snap.data() || { next: 0 };
           const start = Number(data.next) || 0;
           const newNext = start + count;
           tx.update(ref, { next: newNext });
-
           const pad = (n) => String(n).padStart(RUN_WIDTH, '0');
-          return Array.from({ length: count }, (_, i) => pad(start + i + 1));
+          const arr = Array.from({ length: count }, (_, i) => pad(start + i + 1));
+          return arr;
         });
-
         return block;
       }
 
@@ -402,22 +494,21 @@
         });
       }
 
-      /* 🔽 تحميل القالب كـ XLSX (بدون مشاكل ترميز) */
       function downloadExcelTemplate(){
         const headers = ['الاسم','الجنس','الديانة'];
-        const sample  = [
+        const sample = [
           ['أحمد محمد','ذكر','مسلم'],
           ['مريم سامي','أنثى','مسيحي']
         ];
-        const aoa = [headers, ...sample];
-        const ws  = XLSX.utils.aoa_to_sheet(aoa);
-        ws['!cols'] = [{wch:25},{wch:10},{wch:12}];
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'الطلاب');
-        XLSX.writeFile(wb, 'قالب_الطلاب.xlsx');
+        const csv = [headers.join(','), ...sample.map(r=>r.join(','))].join('\n');
+        const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'قالب_الطلاب.csv';
+        document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
       }
 
-      // الحصول على الفصل المحدد (نص ومعرف)
       async function getSelectedClassWithLabel() {
         const g = document.getElementById('s-grade').value;
         const s = document.getElementById('s-system').value;
@@ -434,7 +525,6 @@
         return { classId: doc.id, label: `${d.grade} - ${d.system} - ${d.section}` };
       }
 
-      // استيراد من إكسل
       async function handleExcelFileSelect(e){
         const file = e.target.files?.[0];
         if (!file) return;
@@ -480,7 +570,6 @@
 
           if (!confirm(`سيتم إضافة ${normalized.length} طالب/طالبة إلى الفصل: [ ${label} ]\nهل تريد المتابعة؟`)) { e.target.value=''; return; }
 
-          // احجزي بلوك أرقام عامة
           const runBlock = await allocateRunNumbers(normalized.length);
 
           const batch = db.batch();
@@ -508,49 +597,8 @@
         }
       }
 
-      /* ====== تصدير طلاب الفصل الحالي (اسم + فصل + النوع) ====== */
-      async function exportCurrentClassStudents(){
-        // حددي الفصل من القوائم الحالية
-        const { classId, label } = await getSelectedClassWithLabel();
-        if (!classId) { alert('⚠️ اختر/أضف الفصل أولًا.'); return; }
-
-        // هات الطلاب
-        const snap = await db.collection('students')
-          .where('classId','==',classId)
-          .orderBy('seatNumber')
-          .get();
-
-        if (snap.empty) { alert('ℹ️ لا يوجد طلاب لهذا الفصل بعد.'); return; }
-
-        // جهّز البيانات
-        const toAr = { gender: (g)=> g==='male'?'ذكر':'أنثى' };
-        const headers = ['الاسم','الفصل','النوع'];
-        const rows = [];
-        snap.forEach(doc=>{
-          const d = doc.data();
-          rows.push([
-            d.name || '',
-            label || '',
-            toAr.gender(d.gender || '')
-          ]);
-        });
-
-        // كوّن ملف إكسل
-        const aoa = [headers, ...rows];
-        const ws  = XLSX.utils.aoa_to_sheet(aoa);
-        ws['!cols'] = [{wch:25},{wch:28},{wch:10}];
-
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'طلاب الفصل');
-
-        // اسم ملف مناسب
-        const safe = (label || 'الفصل').replace(/[\\/:*?"<>|]/g,' ').replace(/\s+/g,'_');
-        XLSX.writeFile(wb, `طلاب_${safe}.xlsx`);
-      }
-
       /* ====== EVALUATIONS ====== */
 
-      // فتح الشهادة لاسم طالب معيّن
       function openCertificateForStudent(studentName){
         const month = document.getElementById('eval-month').value;
         const year  = new Date().getFullYear();
@@ -563,7 +611,6 @@
           teacher: `أ. ${currentTeacherName || ''}`
         });
         const url = `${CERT_PAGE}?${q.toString()}`;
-
         const win = window.open(url, '_blank', 'noopener');
         if (!win) {
           const a = document.createElement('a');
@@ -703,8 +750,9 @@
         };
       }
 
-      // تصدير دوال مهمة (اختياري)
+      // تصدير لبعض الدوال إذا لزم
       window.displayStudents = displayStudents;
+      window.deleteClass = deleteClass;
     });
   </script>
 </body>
