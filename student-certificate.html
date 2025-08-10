@@ -39,8 +39,8 @@
     overflow:hidden;
   }
 
-  /* إطار زخرفي — يظهر فقط في الطباعة */
-  .frame-outer.only-print{
+  /* إطار زخرفي (ظاهر على الشاشة والطباعة) */
+  .frame-outer{
     position:absolute; inset:5mm;
     border-radius: 12px;
     background:
@@ -53,7 +53,7 @@
     pointer-events:none;
     border: 3px solid #d4af37;
   }
-  .frame-inner.only-print{
+  .frame-inner{
     position:absolute; inset:9mm;
     border: 2px dashed rgba(212,175,55,.55);
     border-radius: 10px;
@@ -63,7 +63,7 @@
   .header{
     display:grid; grid-template-columns: 120px 1fr 120px;
     align-items:center;
-    padding:14px 20px 8px;
+    padding:16px 20px 8px;
   }
 
   /* QR على الشمال */
@@ -76,14 +76,14 @@
   }
   #qrcode{ width:98px; height:98px; }
 
-  /* عنوان المعهد — يظهر فقط في الطباعة */
-  .title.only-print{
+  /* عنوان المعهد */
+  .title{
     text-align:center;
   }
-  .title.only-print h1{
+  .title h1{
     margin:0; font-size:30px; letter-spacing:.3px; color:#0d6efd; font-weight:800;
   }
-  .subtitle.only-print{
+  .subtitle{
     text-align:center; margin:2px 0 0; color:#555; font-size:14px;
   }
 
@@ -138,7 +138,7 @@
   }
 
   /* شريط أدوات الشاشة فقط */
-  .screen-bar.hide-print{
+  .screen-bar{
     position:sticky; top:0; background:#fff; padding:10px 12px; display:flex; gap:8px; justify-content:flex-end;
     border-bottom:1px dashed #e6e9ef; z-index:5;
   }
@@ -147,37 +147,32 @@
   }
   .btn.primary{ background:#0d6efd; color:#fff; border-color:#0d6efd; }
 
-  /* إظهار/إخفاء حسب الطباعة */
-  .only-print{ display:none; }
-  .hide-print{ display:block; }
   @media print{
     body{ background:#fff; }
     .sheet{ margin:0; width:auto; min-height:auto; box-shadow:none; border-radius:0; }
-    .hide-print{ display:none !important; }
-    .only-print{ display:block !important; }
   }
 </style>
 </head>
 <body>
 
-  <!-- أزرار شاشة فقط -->
-  <div class="screen-bar hide-print">
+  <!-- أزرار شاشة -->
+  <div class="screen-bar">
     <button class="btn" onclick="history.back()">رجوع</button>
     <button class="btn primary" onclick="window.print()">🖨️ طباعة</button>
   </div>
 
   <div class="sheet" id="sheet">
-    <!-- الإطار الزخرفي (للطباعة فقط) -->
-    <div class="frame-outer only-print"></div>
-    <div class="frame-inner only-print"></div>
+    <!-- الإطار الزخرفي -->
+    <div class="frame-outer"></div>
+    <div class="frame-inner"></div>
 
     <!-- رأس الشهادة -->
     <div class="header">
       <!-- الشمال: QR برابط الطالب -->
       <div class="qr-box"><div id="qrcode"></div></div>
 
-      <!-- المنتصف: عنوان المعهد (للطباعة فقط) -->
-      <div class="title only-print">
+      <!-- المنتصف: عنوان المعهد -->
+      <div class="title">
         <h1>معهد الدراسات الإدارية والفنية</h1>
         <div class="subtitle">شهادة درجات شهرية للطالب</div>
       </div>
