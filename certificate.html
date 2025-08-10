@@ -7,6 +7,7 @@
 <link rel="icon" href="data:,">
 
 <style>
+  /* A4 Landscape – بدون هوامش */
   @page{ size: A4 landscape; margin: 0; }
   html,body{ height:100%; }
   body{
@@ -16,6 +17,8 @@
     font-family: Tahoma, Arial, sans-serif;
     background:#f6f8fa;
   }
+
+  /* مساحة الورقة: 297×210 مم */
   .sheet{
     position:relative;
     width: 297mm;
@@ -25,29 +28,34 @@
     background:#fff;
     box-shadow: 0 8px 24px rgba(0,0,0,.08);
   }
+
+  /* الخلفية كصورة لضمان ظهورها في الطباعة */
   .bg{
     position:absolute; inset:0;
     width:100%; height:100%;
     object-fit:cover;
     z-index:0;
   }
+
   /* اسم الطالب */
   .pos-name{
     position:absolute;
-    top: 45%;   
-    right: 25%; 
-    width: 75%;  
+    top: 45%;
+    right: 29.99%;
+    width: 40%;
     text-align:center;
-    font-size: 25;
+    font-size: 30px;
     font-weight: 700;
     color:#000;
-    letter-spacing: .5px;
+    letter-spacing: .4px;
     z-index: 1;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  /* التوقيع */
+
+  /* التوقيع (يسار تحت) */
   .pos-sign{
     position:absolute;
-    top: 69.97%;
+    top: 69.97%;      /* ↔ نفس مستوى الختم */
     left: 15.99%;
     width: 22%;
     text-align: right;
@@ -56,31 +64,49 @@
     z-index: 1;
   }
   #teacherLabel{ font-size:16px; font-weight:700; }
-  #subjectLine{ font-size:14px; color:#333; }
-  #when{ font-size:14px; color:#333; }
+  #subjectLine{  font-size:14px; color:#333; }
+  #when{         font-size:14px; color:#333; }
+
+  /* الختم في منتصف الأسفل وعلى نفس السطر */
+  .stamp{
+    position:absolute;
+    top: 69.97%;          /* ↔ نفس ارتفاع pos-sign */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 32mm;          /* غيّري الحجم اللي يناسبك (مم أو %) */
+    height: auto;
+    z-index: 1;
+    opacity: 0.95;        /* ممكن تقلّلي/تزودي شفافية الختم */
+    pointer-events: none; /* عشان ما يعيق الضغط/الطباعة */
+  }
+
   @media print {
     body{ background:#fff; }
     .sheet{ box-shadow:none; margin:0; }
     .btns{ display:none; }
   }
-  .btns{margin:16px auto; text-align:center}
-  .btns button{padding:10px 16px; border-radius:8px; border:1px solid #ccc; cursor:pointer; background:#f7f7f7}
+  .btns{ margin:16px auto; text-align:center }
+  .btns button{ padding:10px 16px; border-radius:8px; border:1px solid #ccc; cursor:pointer; background:#f7f7f7 }
 </style>
 </head>
 <body>
 
   <div class="sheet">
+    <!-- الخلفية -->
     <img class="bg" src="certificate-bg.jpg" alt="خلفية الشهادة" onerror="this.style.display='none'">
 
     <!-- اسم الطالب -->
     <div class="pos-name" id="nm">—</div>
 
-    <!-- التوقيع -->
+    <!-- التوقيع (يسار) -->
     <div class="pos-sign">
       <div id="teacherLabel">معلم المادة: —</div>
       <div id="subjectLine">مادة التربية الإسلامية</div>
       <div id="when">—</div>
     </div>
+
+    <!-- الختم (منتصف الأسفل وعلى نفس السطر) -->
+    <img class="stamp" src="SIN.png" alt="ختم المدرسة" onerror="this.style.display='none'">
   </div>
 
   <div class="btns">
@@ -95,13 +121,12 @@
   const month   = p.get('month')   || '';
   const year    = p.get('year')    || new Date().getFullYear();
   const teacher = p.get('teacher') || '—';
-  const gender  = (p.get('gender') || '').toLowerCase(); // male / female
 
   document.getElementById('nm').textContent = name;
-
   document.getElementById('teacherLabel').textContent = `معلم المادة: ${teacher}`;
   document.getElementById('when').textContent = month ? `عن شهر ${month} ${year}` : `العام ${year}`;
 
+  // اطبع بعد تحميل الخلفية (لو فشلت نطبع بعد مهلة قصيرة)
   const img = document.querySelector('.bg');
   const printNow = () => setTimeout(()=>window.print(), 400);
   if (!img || img.complete) printNow();
