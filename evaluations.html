@@ -203,9 +203,13 @@
       });
     }
 
-    // ===== Build printable HTML =====
+    // ===== Build printable HTML (Fixed) =====
     function buildPrintableHTML({year, month, classText, rows, blank=false}) {
-      const monthPart = month ? `نتيجة اختبارات مادة التربية الإسلامية لشهر ${month} لسنة ${year}` : `نتيجة اختبارات مادة التربية الإسلامية لسنة ${year}`;
+      const monthPart = month
+        ? `نتيجة اختبارات مادة التربية الإسلامية لشهر ${month} لسنة ${year}`
+        : `نتيجة اختبارات مادة التربية الإسلامية لسنة ${year}`;
+
+      const logoUrl = new URL('logo.png', location.href).href;
 
       return `
 <!DOCTYPE html>
@@ -233,7 +237,7 @@
 </head>
 <body>
   <div class="header">
-    <img src="${location.origin + location.pathname.replace(/\\/[^/]*$/, '/') + 'logo.png'}" alt="logo">
+    <img src="${logoUrl}" alt="logo">
     <div class="title">معهد الدراسات الإدارية والفنية</div>
     <div class="sub">${monthPart}</div>
     <div class="classline">${classText}</div>
@@ -260,7 +264,7 @@
           <td>${blank ? '' : (r.test === 0 ? '-' : (r.part ?? ''))}</td>
           <td>${blank ? '' : (r.test === 0 ? '-' : (r.beh  ?? ''))}</td>
           <td>${blank ? '' : (r.test === 0 ? '-' : (r.total?? ''))}</td>
-          <td>${blank ? '' : (r.grade ?? ''))}</td>
+          <td>${blank ? '' : (r.grade ?? '')}</td>
         </tr>
       `).join('')}
     </tbody>
@@ -277,7 +281,7 @@
       window.print();
       setTimeout(() => window.close(), 300);
     });
-  </script>
+  <\/script>
 </body>
 </html>`;
     }
