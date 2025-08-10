@@ -66,14 +66,12 @@
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       // ===== إعدادات رقم الجلوس =====
-      // عدد خانات العداد العام (زودي لـ 5 لو حابة سعة أكبر)
-      const RUN_WIDTH = 4;
-      // ذكر=1، أنثى=2
-      const GENDER_CODE   = { male: '1', female: '2' };
-      // مسلم=1، مسيحي=2 (عدلي إن حبيتي)
-      const RELIGION_CODE = { muslim: '1', christian: '2' };
+      // اضبطي الأكواد هنا حسب المطلوب:
+      const RUN_WIDTH = 5; // عدد الخانات للأرقام المتسلسلة العامة (زوديها لـ 5 لو محتاجة سعة أكبر)
+      const GENDER_CODE   = { male: '1', female: '2' }; // ذكر=1، أنثى=2
+      const RELIGION_CODE = { muslim: '1', christian: '2' }; // مسلم=1، مسيحي=2  ← غيريها لو حابة مسلم=2
 
-      // صفحة الشهادة
+      // اسم صفحة الشهادة
       const CERT_PAGE = 'certificate.html';
 
       // Firebase
@@ -274,19 +272,19 @@
         loadTeacherClasses();
       }
 
-      /* ====== عدّاد عام لأرقام الجلوس ====== */
+      /* ====== مقاطع مساعدة لرقم الجلوس الفريد المدرسة كلها ====== */
 
       // تأكيد وجود مستند العداد العام counters/students
       async function ensureStudentsCounterDoc() {
         const ref = db.collection('counters').doc('students');
         const snap = await ref.get();
         if (!snap.exists) {
-          await ref.set({ next: 0 }, { merge: true }); // يبدأ من 0، أول رقم 0001
+          await ref.set({ next: 0 }, { merge: true }); // يبدأ من 0، أول رقم سيتم توليده = 0001
         }
         return ref;
       }
 
-      // حجز عدد من الأرقام المتسلسلة العامة (يرجع مصفوفة نصوص padded)
+      // حجز عدد من الأرقام المتسلسلة العامة (يرجع مصفوفة نصوص "مصفّرة" بطول RUN_WIDTH)
       async function allocateRunNumbers(count) {
         if (count <= 0) return [];
         const ref = await ensureStudentsCounterDoc();
@@ -299,13 +297,14 @@
           tx.update(ref, { next: newNext });
 
           const pad = (n) => String(n).padStart(RUN_WIDTH, '0');
-          return Array.from({ length: count }, (_, i) => pad(start + i + 1));
+          const arr = Array.from({ length: count }, (_, i) => pad(start + i + 1)); // 0001..الخ
+          return arr;
         });
 
         return block;
       }
 
-      // بناء رقم الجلوس النهائي: [جنس][ديانة][العدّاد العام]
+      // بناء رقم الجلوس النهائي: [جنس][ديانة][العدّاد العام المصفّر]
       function buildSeatNumber(gender, religion, runStr) {
         const g = GENDER_CODE[gender] ?? '0';
         const r = RELIGION_CODE[religion] ?? '0';
@@ -333,12 +332,13 @@
 
         const classId = classSnap.docs[0].id;
 
+        // 🔢 احجز رقم متسلسل عام واحد ثم ابنِ رقم الجلوس النهائي
         const [runStr] = await allocateRunNumbers(1);
         const seatNumber = buildSeatNumber(gender, religion, runStr);
 
         await db.collection('students').add({
           name, gender, religion,
-          seatNumber,
+          seatNumber, // مثال: 11 0001
           classId, teacher: currentTeacherId
         });
 
@@ -386,7 +386,7 @@
         });
       }
 
-      // قراءة ملف إكسل/CSV
+      // قراءة ملف إكسل/CSV وإرجاع مصفوفة كائنات حسب الرؤوس
       function readExcelFile(file){
         return new Promise((resolve, reject) => {
           const reader = new FileReader();
@@ -404,7 +404,7 @@
         });
       }
 
-      // تنزيل قالب CSV
+      // تنزيل قالب CSV بسيط
       function downloadExcelTemplate(){
         const headers = ['الاسم','الجنس','الديانة'];
         const sample = [
@@ -420,7 +420,7 @@
         URL.revokeObjectURL(url);
       }
 
-      // الحصول على الفصل المحدد
+      // الحصول على الفصل المحدد نصًا ومعرّفًا
       async function getSelectedClassWithLabel() {
         const g = document.getElementById('s-grade').value;
         const s = document.getElementById('s-system').value;
@@ -442,6 +442,7 @@
         const file = e.target.files?.[0];
         if (!file) return;
 
+        // تأكيد الفصل
         const { classId, label } = await getSelectedClassWithLabel();
         if (!classId) { alert('⚠️ الفصل غير موجود. من فضلك أضِف الفصل أولًا أو اختر فصلًا صحيحًا.'); e.target.value=''; return; }
 
@@ -449,6 +450,7 @@
           const rows = await readExcelFile(file);
           if (!rows.length) { alert('⚠️ لا توجد بيانات صالحة في الملف'); e.target.value=''; return; }
 
+          // تحويل القيم العربية إلى القيم الداخلية
           const normalized = [];
           const errors = [];
 
@@ -483,7 +485,7 @@
 
           if (!confirm(`سيتم إضافة ${normalized.length} طالب/طالبة إلى الفصل: [ ${label} ]\nهل تريد المتابعة؟`)) { e.target.value=''; return; }
 
-          // احجزي بلوك أرقام عامة
+          // 🔢 احجزي بلوك أرقام عامة بعدد الطلاب
           const runBlock = await allocateRunNumbers(normalized.length);
 
           const batch = db.batch();
@@ -513,39 +515,27 @@
 
       /* ====== EVALUATIONS ====== */
 
-      // فتح الشهادة بالاعتماد على studentId (نجلب الاسم + النوع من Firestore)
-      async function openCertificateForStudentById(studentId){
-        try{
-          const doc = await db.collection('students').doc(studentId).get();
-          if (!doc.exists) { alert('لم يتم العثور على بيانات الطالب'); return; }
-          const s = doc.data();
-          const studentName = s.name || 'طالب';
-          const gender = s.gender || ''; // male/female
+      // فتح الشهادة لاسم طالب معيّن في تبويب جديد (إصلاح الحظر/الرجوع)
+      function openCertificateForStudent(studentName){
+        const month = document.getElementById('eval-month').value;
+        const year  = new Date().getFullYear();
+        const classText = document.getElementById('eval-class').selectedOptions[0]?.textContent || '';
+        const q = new URLSearchParams({
+          name: studentName,
+          month,
+          year: String(year),
+          klass: classText,
+          teacher: `أ. ${currentTeacherName || ''}`
+        });
+        const url = `${CERT_PAGE}?${q.toString()}`;
 
-          const month = document.getElementById('eval-month').value;
-          const year  = new Date().getFullYear();
-          const classText = document.getElementById('eval-class').selectedOptions[0]?.textContent || '';
-
-          const q = new URLSearchParams({
-            name: studentName,
-            month,
-            year: String(year),
-            klass: classText,
-            teacher: `أ. ${currentTeacherName || ''}`,
-            gender
-          });
-
-          const url = `${CERT_PAGE}?${q.toString()}`;
-
-          const win = window.open(url, '_blank', 'noopener');
-          if (!win) {
-            const a = document.createElement('a');
-            a.href = url; a.target = '_blank'; a.rel = 'noopener';
-            document.body.appendChild(a); a.click(); a.remove();
-          }
-        }catch(e){
-          console.error(e);
-          alert('تعذر فتح الشهادة');
+        // محاولة مباشرة (ضمن حدث المستخدم)
+        const win = window.open(url, '_blank', 'noopener');
+        if (!win) {
+          // fallback لو منع النوافذ
+          const a = document.createElement('a');
+          a.href = url; a.target = '_blank'; a.rel = 'noopener';
+          document.body.appendChild(a); a.click(); a.remove();
         }
       }
 
@@ -620,10 +610,10 @@
         await showEvaluationSummary();
         alert('✔️ تم حفظ التقييم');
 
-        // فتح الشهادة تلقائيًا لو 40/40
+        // خيار فوري لفتح الشهادة إذا كانت 40/40
         if (total === 40) {
           const openIt = confirm('🎉 الطالب حصل على 40/40 — فتح شهادة التقدير؟');
-          if (openIt) openCertificateForStudentById(studentId);
+          if (openIt) openCertificateForStudent(name);
         }
       }
 
@@ -656,7 +646,7 @@
           else evaluation = 'يرجى تشجيع الطفل لرفع مستواه';
 
           const certCell = (totalNum === 40)
-            ? `<button type="button" class="btn-cert cert-btn" data-id="${d.studentId}">🏆 شهادة</button>`
+            ? `<button type="button" class="btn-cert cert-btn" data-name="${d.name}">🏆 شهادة</button>`
             : '—';
 
           tbody.innerHTML += `
@@ -679,14 +669,17 @@
           const btn = e.target.closest('.cert-btn');
           if (!btn) return;
           e.preventDefault();
-          const sid = btn.dataset.id;
-          if (sid) openCertificateForStudentById(sid);
+          openCertificateForStudent(btn.dataset.name || '');
         };
       }
 
-      // تصدير دوال مهمة (اختياري)
+      // تصدير دوال مهمة للنطاق العام (إن لزم)
+      window.loadEvalStudents = loadEvalStudents;
+      window.showEvaluationSummary = showEvaluationSummary;
+      window.updateStudentName = updateStudentName;
       window.displayStudents = displayStudents;
     });
   </script>
 </body>
 </html>
+
