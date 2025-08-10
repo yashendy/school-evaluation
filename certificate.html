@@ -4,33 +4,89 @@
 <meta charset="utf-8">
 <title>شهادة تقدير</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+
 <style>
-  body{font-family:Tahoma, Arial, sans-serif; background:#f6f8fa; margin:0; padding:24px}
-  .cert{
-    background:#fff; border:6px double #1e88e5; padding:28px; max-width:840px; margin:0 auto;
-    box-shadow:0 8px 24px rgba(0,0,0,.08)
+  /* ورقة A4 بدون هوامش للطباعة */
+  @page{ size: A4; margin: 0; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    font-family: Tahoma, Arial, "Segoe UI", sans-serif;
+    background:#f6f8fa;
   }
-  h1{margin:0 0 6px; color:#1e88e5; text-align:center}
-  .line{margin:10px 0; text-align:center; font-size:20px}
-  .name{font-size:28px; font-weight:bold; color:#000}
-  .small{color:#555; font-size:14px}
-  .foot{display:flex; justify-content:space-between; margin-top:24px; color:#333}
+
+  .sheet{
+    position:relative;
+    width: 210mm;
+    height: 297mm;
+    margin: 0 auto;
+    overflow:hidden;
+    background:#fff;
+    box-shadow: 0 8px 24px rgba(0,0,0,.08);
+  }
+
+  /* الخلفية كصورة لضمان ظهورها في الطباعة */
+  .bg{
+    position:absolute; inset:0;
+    width:100%; height:100%;
+    object-fit:cover; /* أو contain حسب تصميم الخلفية */
+    z-index:0;
+  }
+
+  .content{
+    position:relative; z-index:1;
+    padding: 22mm 18mm; /* مسافات داخلية */
+    box-sizing:border-box;
+    color:#111;
+    text-align:center;
+  }
+
+  h1{margin:0 0 8px; color:#1e88e5; font-size:28px}
+  .line{margin:8px 0; font-size:18px}
+  .name{font-size:30px; font-weight:bold; color:#000}
+
+  .footer{
+    position:absolute; left:0; right:0; bottom:18mm;
+    padding: 0 18mm;
+    display:flex; justify-content:space-between; align-items:center;
+    box-sizing:border-box; font-size:16px; color:#111;
+  }
+
   .btns{margin:16px auto; text-align:center}
   .btns button{padding:10px 16px; border-radius:8px; border:1px solid #ccc; cursor:pointer; background:#f7f7f7}
-  @media print {.btns{display:none}}
+
+  @media print {
+    body{ background:#fff; }
+    .sheet{ box-shadow:none; margin:0; }
+    .btns{ display:none; }
+  }
 </style>
 </head>
 <body>
-  <div class="cert">
-    <h1>شهادة تقدير</h1>
-    <div class="line">تتقدم إدارة المدرسة بالشكر والتقدير إلى</div>
-    <div class="line name" id="nm">—</div>
-    <div class="line">لحصوله/ها على الدرجة الكاملة (40/40)</div>
-    <div class="line small" id="cls">الفصل: —</div>
-    <div class="line small" id="mon">الشهر: —</div>
-    <div class="foot">
-      <div id="teacher">المعلم: —</div>
-      <div id="year">العام: —</div>
+
+  <div class="sheet">
+    <!-- لو الصورة في مجلد آخر عدلي المسار -->
+    <img class="bg" src="certificate-bg.jpg" alt="خلفية الشهادة" onerror="this.style.display='none'">
+    <div class="content">
+      <h1>شهادة تقدير</h1>
+
+      <!-- السطر الأول الثابت -->
+      <div class="line">تتقدم معلمة المادة بالشكر والتقدير إلى</div>
+
+      <!-- السطر الثاني: اسم الطالب -->
+      <div class="line name" id="nm">—</div>
+
+      <!-- السطر الثالث: جملة الدرجة حسب النوع -->
+      <div class="line" id="fullMark">لحصوله/ها على الدرجة الكاملة (40/40)</div>
+    </div>
+
+    <!-- التذييل: يمين اسم المعلم / يسار الشهر والسنة -->
+    <div class="footer">
+      <div id="teacher">المعلمة: —</div>
+      <div id="when">—</div>
     </div>
   </div>
 
@@ -40,16 +96,41 @@
 
 <script>
   (function(){
-    // جلب بيانات الطالب من الـ URL
     const p = new URLSearchParams(location.search);
-    document.getElementById('nm').textContent = p.get('name') || 'طالب';
-    document.getElementById('cls').textContent = 'الفصل: ' + (p.get('klass') || '—');
-    document.getElementById('mon').textContent = 'الشهر: ' + (p.get('month') || '—');
-    document.getElementById('teacher').textContent = 'المعلم: ' + (p.get('teacher') || '—');
-    document.getElementById('year').textContent = 'العام: ' + (p.get('year') || new Date().getFullYear());
 
-    // فتح نافذة الطباعة تلقائيًا بعد تحميل الصفحة
-    setTimeout(()=>{ window.print(); }, 500);
+    // بيانات قادمة من الرابط
+    const name    = p.get('name')    || 'طالب';
+    const month   = p.get('month')   || '';
+    const year    = p.get('year')    || new Date().getFullYear();
+    const teacher = p.get('teacher') || '—';
+    const gender  = (p.get('gender') || '').toLowerCase(); // male / female (اختياري)
+
+    // تعبئة الحقول
+    document.getElementById('nm').textContent = name;
+
+    // جملة الدرجة حسب النوع
+    const line = document.getElementById('fullMark');
+    if (gender === 'male') {
+      line.textContent = 'لحصوله على الدرجة الكاملة (40/40)';
+    } else if (gender === 'female') {
+      line.textContent = 'لحصولها على الدرجة الكاملة (40/40)';
+    } else {
+      line.textContent = 'لحصوله/ها على الدرجة الكاملة (40/40)';
+    }
+
+    // التذييل: يمين اسم المعلم، يسار الشهر والسنة
+    document.getElementById('teacher').textContent = `المعلمة: ${teacher}`;
+    const whenText = [month && `الشهر: ${month}`, `العام: ${year}`].filter(Boolean).join(' — ');
+    document.getElementById('when').textContent = whenText || `العام: ${year}`;
+
+    // اطبع بعد تحميل الخلفية (أو بعد مهلة قصيرة لو فشلت)
+    const img = document.querySelector('.bg');
+    const printNow = () => setTimeout(()=>window.print(), 400);
+    if (!img || img.complete) printNow();
+    else {
+      img.addEventListener('load', printNow);
+      img.addEventListener('error', printNow);
+    }
   })();
 </script>
 </body>
