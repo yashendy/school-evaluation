@@ -2,195 +2,178 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <title>نظام تقييم الطلاب</title>
+  <title>صفحة الطالب برقم الجلوس</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
   <script src="firebase-config.js"></script>
 
   <style>
-    :root{ color-scheme: light; }
-    body { margin:0; font-family:'Segoe UI', Tahoma, Arial, sans-serif; background:#f5f7fa; text-align:center; direction:rtl; padding:20px;}
-    .container { background:#fff; max-width:500px; margin:auto; padding:30px; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,0.08);}
-    img{ width:80px; margin-bottom:10px; }
-    h2{ color:#0d6efd; margin:0 0 6px; font-weight:800; }
-    h3{ margin:6px 0 2px; font-weight:700; color:#222 }
-    p.lead{ margin:0 0 16px; color:#555 }
-
-    .tabs{ display:flex; margin:18px 0 12px; gap:6px }
-    .tab-btn{ flex:1; padding:10px; cursor:pointer; background:#e9ecef; border:1px solid #ced4da; border-radius:8px; font-weight:600; }
-    .tab-btn.active{ background:#0d6efd; border-color:#0d6efd; color:#fff; }
-
-    input[type=email], input[type=password], input[type=text], input[type=tel] {
-      width:100%; padding:12px; margin:8px 0; border:1px solid #ced4da; border-radius:8px; font-size:16px; box-sizing:border-box;
-    }
-    .role-section{ display:flex; justify-content:space-between; align-items:center; gap:8px; margin:12px 0; }
-    .radio-box{ flex:1; background:#f8f9fa; padding:10px; border:1px solid #e9ecef; border-radius:8px; }
-    .divider{ width:2px; background:#dee2e6; align-self:stretch; border-radius:2px; }
-    .form-button{ width:100%; padding:12px; background:#0d6efd; color:#fff; font-size:16px; border:none; border-radius:10px; cursor:pointer; margin-top:10px; }
-    .form-button.secondary{ background:#6c757d; }
-    .note{ margin-top:14px; font-size:13px; color:#6c757d;}
-    .mini{ font-size:12px; color:#6c757d; margin-top:6px }
-
-    .row{ display:grid; grid-template-columns:1fr; gap:8px }
-    .hint{ font-size:12px; color:#6c757d; text-align:right; margin-top:-6px; }
-
-    .inline-link{ margin-top:12px; display:block; color:#0d6efd; text-decoration:none; }
-    .inline-link:hover{ text-decoration:underline; }
+    body{ margin:0; font-family:'Segoe UI', Tahoma, Arial, sans-serif; background:#f5f7fa; color:#222; }
+    .wrap{ max-width:720px; margin:24px auto; background:#fff; padding:20px; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.06); }
+    h2{ margin:0 0 6px; color:#0d6efd; }
+    .muted{ color:#666; font-size:14px; }
+    .row{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px }
+    .card{ background:#f8f9fa; border:1px solid #e9ecef; border-radius:10px; padding:12px; }
+    .form{ display:flex; gap:8px; margin:10px 0 16px }
+    input[type=text]{ flex:1; padding:12px; border:1px solid #ced4da; border-radius:10px; font-size:16px }
+    button{ padding:12px 16px; border:0; background:#0d6efd; color:#fff; border-radius:10px; cursor:pointer; }
+    table{ width:100%; border-collapse:collapse; margin-top:8px }
+    th,td{ border:1px solid #e9ecef; padding:8px; text-align:center }
+    th{ background:#f2f5f7 }
+    .center{ text-align:center }
   </style>
 </head>
 <body>
-  <div class="container">
-    <img src="logo.png" alt="Logo">
-    <h3>فكرة وتنفيذ: ياسر شندي</h3>
-    <h2>معهد الدراسات الإدارية والفنية</h2>
-    <p class="lead">نظام تقييم الطلاب</p>
+  <div class="wrap">
+    <h2>عرض بيانات الطالب</h2>
+    <p class="muted">ادخل مباشرة عبر الرابط مثل: <code>student.html?seat=110001</code></p>
 
-    <div class="tabs">
-      <button id="btn-login" class="tab-btn active" type="button">تسجيل الدخول</button>
-      <button id="btn-register" class="tab-btn" type="button">إنشاء حساب</button>
+    <!-- نموذج إدخال رقم الجلوس (يظهر عند عدم توفر بارامتر seat) -->
+    <div id="seat-form" class="form" style="display:none">
+      <input id="seat-input" type="text" inputmode="numeric" placeholder="ادخل رقم الجلوس (مثال: 110001)">
+      <button id="go-seat">عرض</button>
     </div>
 
-    <!-- تسجيل الدخول -->
-    <div id="login-tab">
-      <input type="email" id="login-email" placeholder="البريد الإلكتروني">
-      <input type="password" id="login-password" placeholder="كلمة المرور">
-
-      <!-- أدوار: معلم / إدارة -->
-      <div class="role-section">
-        <div class="radio-box"><label><input type="radio" name="login-type" value="teacher" checked> معلّم</label></div>
-        <div class="divider"></div>
-        <div class="radio-box"><label><input type="radio" name="login-type" value="admin"> الإدارة</label></div>
-      </div>
-
-      <button id="btn-login-action" class="form-button">تسجيل الدخول</button>
-
-      <!-- تيسير للطلاب: إدخال رقم الجلوس لتوليد الرابط -->
-      <a href="student.html" class="inline-link">الدخول كطالب برقم الجلوس</a>
-      <p class="mini">الدخول للطالب يكون برابط مباشر: <code>student.html?seat=110001</code></p>
-    </div>
-
-    <!-- إنشاء حساب -->
-    <div id="register-tab" style="display:none;">
+    <!-- معلومات الطالب -->
+    <div id="student-card" class="card" style="display:none">
       <div class="row">
-        <input type="text" id="reg-name" placeholder="الاسم الكامل">
-        <input type="email" id="reg-email" placeholder="البريد الإلكتروني">
-        <input type="password" id="reg-password" placeholder="كلمة المرور">
-        <input type="tel" id="reg-phone" placeholder="رقم الهاتف">
+        <div><b>الاسم:</b> <span id="st-name">—</span></div>
+        <div><b>رقم الجلوس:</b> <span id="st-seat">—</span></div>
+        <div><b>الفصل:</b> <span id="st-class">—</span></div>
+        <div><b>المعلم:</b> <span id="st-teacher">—</span></div>
       </div>
-
-      <!-- أدوار: معلم / إدارة -->
-      <div class="role-section">
-        <div class="radio-box"><label><input type="radio" name="reg-type" value="teacher" checked> معلّم</label></div>
-        <div class="divider"></div>
-        <div class="radio-box"><label><input type="radio" name="reg-type" value="admin"> الإدارة</label></div>
-      </div>
-
-      <!-- اسم المادة (يظهر فقط عندما الدور = معلم) -->
-      <div id="subject-wrapper">
-        <input type="text" id="reg-subject" placeholder="اسم المادة (مثال: التربية الإسلامية)">
-        <div class="hint">حقل مطلوب عند تسجيل حساب معلّم.</div>
-      </div>
-
-      <!-- الجنس (اختياري معلوماتي) -->
-      <div class="role-section">
-        <div class="radio-box"><label><input type="radio" name="reg-gender" value="ذكر" checked> ذكر</label></div>
-        <div class="divider"></div>
-        <div class="radio-box"><label><input type="radio" name="reg-gender" value="أنثى"> أنثى</label></div>
-      </div>
-
-      <button id="btn-register-action" class="form-button">إنشاء الحساب</button>
-      <button id="btn-back-to-login" class="form-button secondary" type="button">رجوع لتسجيل الدخول</button>
     </div>
 
-    <p class="note">التعليم ليس فقط درجات، بل بناء أجيال.</p>
-    <p>نسألكم الدعاء لوالدي</p>
+    <!-- التقييمات -->
+    <div id="eval-wrap" class="card" style="display:none; margin-top:12px">
+      <h3 style="margin:0 0 8px;">التقييمات</h3>
+      <table id="eval-table">
+        <thead>
+          <tr><th>الشهر</th><th>العام</th><th>اختبار</th><th>واجب</th><th>مشاركة</th><th>سلوك</th><th>المجموع</th><th>التقدير</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div id="empty" class="center muted" style="display:none; margin-top:16px">لا توجد بيانات لهذا الطالب حتى الآن.</div>
   </div>
 
   <script>
-    // تبويب/إظهار إخفاء
-    function toggleTab(isLogin) {
-      document.getElementById('login-tab').style.display = isLogin ? 'block' : 'none';
-      document.getElementById('register-tab').style.display = isLogin ? 'none' : 'block';
-      document.getElementById('btn-login').classList.toggle('active', isLogin);
-      document.getElementById('btn-register').classList.toggle('active', !isLogin);
+    const db = firebase.firestore();
+
+    function getParam(name){
+      const p = new URLSearchParams(location.search);
+      return p.get(name);
     }
 
-    // إظهار/إخفاء حقل المادة على حسب الدور
-    function updateSubjectVisibility(){
-      const role = document.querySelector("input[name='reg-type']:checked").value;
-      document.getElementById('subject-wrapper').style.display = (role === 'teacher') ? 'block' : 'none';
+    function showSeatForm(){
+      document.getElementById('seat-form').style.display = 'flex';
+      document.getElementById('student-card').style.display = 'none';
+      document.getElementById('eval-wrap').style.display = 'none';
+      document.getElementById('empty').style.display = 'none';
     }
 
+    async function loadStudentBySeat(seat){
+      // ابحث عن الطالب برقم الجلوس
+      const q = await db.collection('students').where('seatNumber','==', seat).limit(1).get();
+      if (q.empty){
+        document.getElementById('empty').textContent = 'رقم الجلوس غير صحيح.';
+        document.getElementById('empty').style.display = 'block';
+        document.getElementById('student-card').style.display = 'none';
+        document.getElementById('eval-wrap').style.display = 'none';
+        return;
+      }
+      const stDoc = q.docs[0];
+      const st = stDoc.data();
+
+      // هات بيانات الفصل لعرض اسمه
+      let klass = '—';
+      if (st.classId){
+        const c = await db.collection('classes').doc(st.classId).get();
+        if (c.exists){
+          const d = c.data();
+          klass = `${d.grade} - ${d.system} - ${d.section}`;
+        }
+      }
+
+      // اسم المعلم
+      let teacherName = '—';
+      if (st.teacher){
+        const u = await db.collection('users').doc(st.teacher).get();
+        if (u.exists) teacherName = u.data().name || '—';
+      }
+
+      // عبّي بيانات الطالب
+      document.getElementById('st-name').textContent = st.name || '—';
+      document.getElementById('st-seat').textContent = st.seatNumber || seat;
+      document.getElementById('st-class').textContent = klass;
+      document.getElementById('st-teacher').textContent = teacherName;
+      document.getElementById('student-card').style.display = 'block';
+
+      // التقييمات (الأحدث أولاً)
+      const evalSnap = await db.collection('evaluations')
+        .where('studentId','==', stDoc.id)
+        .orderBy('year','desc')
+        .orderBy('month','desc')  // حقل الشهر نص عربي عندك؛ لو أردت ترتيب أدق استخدمي رقم شهر بدل النص
+        .get();
+
+      const tbody = document.querySelector('#eval-table tbody');
+      tbody.innerHTML = '';
+      if (evalSnap.empty){
+        document.getElementById('empty').textContent = 'لا توجد تقييمات مسجّلة لهذا الطالب.';
+        document.getElementById('empty').style.display = 'block';
+        document.getElementById('eval-wrap').style.display = 'none';
+        return;
+      }
+
+      evalSnap.forEach(d=>{
+        const e = d.data();
+        const total = Number(e.total) || 0;
+
+        let evaluation = '';
+        if (e.test === 0) evaluation = 'غياب';
+        else if (total === 40) evaluation = 'ممتاز مع الشكر';
+        else if (total >= 36) evaluation = 'ممتاز';
+        else evaluation = 'يرجى التشجيع';
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${e.month || ''}</td>
+          <td>${e.year || ''}</td>
+          <td>${e.test === 0 ? 'غ' : e.test}</td>
+          <td>${e.home || 0}</td>
+          <td>${e.part || 0}</td>
+          <td>${e.beh  || 0}</td>
+          <td>${total}</td>
+          <td>${evaluation}</td>`;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById('empty').style.display = 'none';
+      document.getElementById('eval-wrap').style.display = 'block';
+    }
+
+    // تشغيل
     window.addEventListener('load', () => {
-      // تفعيل التبويبات
-      document.getElementById('btn-login').addEventListener('click', ()=>toggleTab(true));
-      document.getElementById('btn-register').addEventListener('click', ()=>toggleTab(false));
-      document.getElementById('btn-back-to-login').addEventListener('click', ()=>toggleTab(true));
+      const seat = (getParam('seat') || '').trim();
+      if (!seat){
+        showSeatForm();
+      }else{
+        loadStudentBySeat(seat);
+      }
 
-      document.querySelectorAll("input[name='reg-type']").forEach(r=>r.addEventListener('change', updateSubjectVisibility));
-      updateSubjectVisibility();
+      document.getElementById('go-seat').addEventListener('click', () => {
+        const s = document.getElementById('seat-input').value.trim();
+        if (!s) return alert('أدخل رقم الجلوس');
+        location.href = `student.html?seat=${encodeURIComponent(s)}`;
+      });
 
-      // تسجيل الدخول
-      document.getElementById('btn-login-action').onclick = async () => {
-        const email = document.getElementById('login-email').value.trim();
-        const password = document.getElementById('login-password').value;
-        const role = document.querySelector("#login-tab input[name='login-type']:checked").value; // teacher | admin
-
-        if (!email || !password) { alert('من فضلك أدخل البريد وكلمة المرور'); return; }
-
-        try {
-          const cred = await firebase.auth().signInWithEmailAndPassword(email, password);
-          const doc = await firebase.firestore().collection('users').doc(cred.user.uid).get();
-          const user = doc.data();
-
-          if (!user) { alert('الحساب غير موجود في قاعدة البيانات'); return; }
-          if (user.type !== role) {
-            alert('نوع الدور المختار لا يطابق نوع الحساب.');
-            return;
-          }
-
-          // تحويل حسب الدور
-          if (role === 'teacher') {
-            location.href = 'teacher.html';
-          } else if (role === 'admin') {
-            location.href = 'admin.html'; // جهّزي هذه الصفحة إن لم تكن موجودة
-          }
-        } catch(e) {
-          alert('خطأ في تسجيل الدخول: ' + (e?.message || e));
-        }
-      };
-
-      // إنشاء الحساب
-      document.getElementById('btn-register-action').onclick = async () => {
-        const name = document.getElementById('reg-name').value.trim();
-        const email = document.getElementById('reg-email').value.trim();
-        const pass = document.getElementById('reg-password').value;
-        const phone = document.getElementById('reg-phone').value.trim();
-        const role = document.querySelector("input[name='reg-type']:checked").value; // teacher | admin
-        const gender = document.querySelector("input[name='reg-gender']:checked").value;
-        const subject = document.getElementById('reg-subject').value.trim();
-
-        if (!name || !email || !pass) { alert('من فضلك أكمل البيانات الأساسية'); return; }
-        if (role === 'teacher' && !subject) { alert('اسم المادة مطلوب لحساب المعلّم'); return; }
-
-        try {
-          const cred = await firebase.auth().createUserWithEmailAndPassword(email, pass);
-          await firebase.firestore().collection('users').doc(cred.user.uid).set({
-            name, email, phone, gender,
-            type: role,                        // teacher | admin
-            subject: role === 'teacher' ? subject : null,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-          });
-          alert('✔️ تم إنشاء الحساب بنجاح');
-          toggleTab(true);
-        } catch(e) {
-          alert('خطأ في إنشاء الحساب: ' + (e?.message || e));
-        }
-      };
+      document.getElementById('seat-input').addEventListener('keydown', (e)=>{
+        if (e.key === 'Enter') document.getElementById('go-seat').click();
+      });
     });
   </script>
 </body>
