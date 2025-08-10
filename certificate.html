@@ -41,20 +41,21 @@
 
   /* ===== تموضع العناصر (قابلة للمعايرة) ===== */
   /* اسم الطالب على السطر المنقّط */
-  .pos-name{
-    position:absolute;
-    top: 45%;       /* ⬅️ عدّلي حسب حاجتك أو استخدمي وضع debug */
-    right: 30%;     /* بداية السطر من اليمين */
-    width: 60%;     /* طول السطر */
-    text-align: right;
-    font-size: 30px;
-    font-weight: 700;
-    color:#000;
-    letter-spacing: .3px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
+  .pos-name {
+    position: absolute;
+    top: 44.98%;     /* المسافة من أعلى الورقة */
+    right: 29.99%;   /* بداية المربع من ناحية اليمين */
+    width: 30%;      /* عرض المربع - صغرته عن 59.97% علشان ما يكبرش */
+    text-align: center; /* وسط الكلام جوه المربع */
+    font-size: 30px;  /* حجم الخط */
+    font-weight: 700; /* سمك الخط */
+    color: #000;      /* لون النص */
+    letter-spacing: .5px; /* مسافة بسيطة بين الحروف */
+    white-space: nowrap; /* يمنع الاسم من النزول لسطر جديد */
+    overflow: hidden; /* يمنع خروج النص برا المربع */
+    text-overflow: ellipsis; /* يحط ... لو الاسم طويل */
+}
+
 
   /* كتلة "التوقيع" */
   .pos-sign{
@@ -261,4 +262,5 @@
 </script>
 </body>
 </html>
+
 
