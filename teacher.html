@@ -508,7 +508,7 @@
         }
       }
 
-      /* ====== تصدير طلاب الفصل الحالي كـ XLSX ====== */
+      /* ====== تصدير طلاب الفصل الحالي (اسم + فصل + النوع) ====== */
       async function exportCurrentClassStudents(){
         // حددي الفصل من القوائم الحالية
         const { classId, label } = await getSelectedClassWithLabel();
@@ -523,27 +523,22 @@
         if (snap.empty) { alert('ℹ️ لا يوجد طلاب لهذا الفصل بعد.'); return; }
 
         // جهّز البيانات
-        const toAr = {
-          gender: (g)=> g==='male'?'ذكر':'أنثى',
-          religion: (r)=> r==='muslim'?'مسلم':'مسيحي'
-        };
-
-        const headers = ['الاسم','الجنس','الديانة','رقم الجلوس'];
+        const toAr = { gender: (g)=> g==='male'?'ذكر':'أنثى' };
+        const headers = ['الاسم','الفصل','النوع'];
         const rows = [];
         snap.forEach(doc=>{
           const d = doc.data();
           rows.push([
             d.name || '',
-            toAr.gender(d.gender || ''),
-            toAr.religion(d.religion || ''),
-            d.seatNumber || ''
+            label || '',
+            toAr.gender(d.gender || '')
           ]);
         });
 
         // كوّن ملف إكسل
         const aoa = [headers, ...rows];
         const ws  = XLSX.utils.aoa_to_sheet(aoa);
-        ws['!cols'] = [{wch:25},{wch:10},{wch:12},{wch:14}];
+        ws['!cols'] = [{wch:25},{wch:28},{wch:10}];
 
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'طلاب الفصل');
