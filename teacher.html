@@ -11,7 +11,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
   <script src="firebase-config.js"></script>
 
-  <!-- SheetJS لقراءة ملفات إكسل -->
+  <!-- SheetJS لقراءة/توليد ملفات إكسل -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <style>
@@ -147,15 +147,16 @@
               <button class="save-btn" id="btn-add-student">إضافة الطالب</button>
               <button class="save-btn" id="btn-load-students">عرض طلاب الفصل</button>
 
-              <!-- استيراد إكسل + قالب -->
+              <!-- استيراد/تصدير -->
               <button class="save-btn" id="btn-import-excel">⬆️ استيراد إكسل</button>
-              <button class="save-btn" id="btn-download-template">⬇️ تحميل قالب</button>
+              <button class="save-btn" id="btn-download-template">⬇️ تحميل قالب (XLSX)</button>
+              <button class="save-btn" id="btn-export-class">⬇️ تصدير طلاب الفصل (XLSX)</button>
               <input type="file" id="excel-file" accept=".xlsx,.xls,.csv" style="display:none" />
 
               <input type="search" id="student-search" placeholder="ابحث باسم الطالب..." list="students-list" />
               <datalist id="students-list"></datalist>
             </div>
-            <div class="muted">صيغة الإكسل المطلوبة: <b>الاسم | الجنس | الديانة</b> (بالعربي). القيم: الجنس = ذكر/أنثى، الديانة = مسلم/مسيحي.
+            <div class="muted">صيغة القالب: <b>الاسم | الجنس | الديانة</b> (بالعربي). القيم: الجنس = ذكر/أنثى، الديانة = مسلم/مسيحي.
               <br>رقم الجلوس يُنشأ تلقائيًا: [جنس][ديانة][${RUN_WIDTH} خانات متسلسلة عامة].
             </div>
 
@@ -168,9 +169,13 @@
           requestAnimationFrame(() => {
             document.getElementById('btn-add-student').addEventListener('click', addStudent);
             document.getElementById('btn-load-students').addEventListener('click', loadStudentList);
+
             document.getElementById('btn-import-excel').addEventListener('click', () => document.getElementById('excel-file').click());
             document.getElementById('excel-file').addEventListener('change', handleExcelFileSelect);
+
             document.getElementById('btn-download-template').addEventListener('click', downloadExcelTemplate);
+            document.getElementById('btn-export-class').addEventListener('click', exportCurrentClassStudents);
+
             loadClassDropdowns();
           });
           return;
@@ -397,31 +402,22 @@
         });
       }
 
-      // 🔽 تنزيل قالب CSV (UTF-8 + BOM لتحسين عرض العربية في Excel)
+      /* 🔽 تحميل القالب كـ XLSX (بدون مشاكل ترميز) */
       function downloadExcelTemplate(){
         const headers = ['الاسم','الجنس','الديانة'];
-        const sample = [
+        const sample  = [
           ['أحمد محمد','ذكر','مسلم'],
           ['مريم سامي','أنثى','مسيحي']
         ];
-
-        const csv = [headers.join(','), ...sample.map(r=>r.join(','))].join('\n');
-
-        // BOM لضمان قراءة Excel للنص العربي بشكل صحيح
-        const bom = '\uFEFF';
-        const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
-
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; 
-        a.download = 'قالب_الطلاب.csv';
-        document.body.appendChild(a); 
-        a.click(); 
-        a.remove();
-        URL.revokeObjectURL(url);
+        const aoa = [headers, ...sample];
+        const ws  = XLSX.utils.aoa_to_sheet(aoa);
+        ws['!cols'] = [{wch:25},{wch:10},{wch:12}];
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'الطلاب');
+        XLSX.writeFile(wb, 'قالب_الطلاب.xlsx');
       }
 
-      // الحصول على الفصل المحدد
+      // الحصول على الفصل المحدد (نص ومعرف)
       async function getSelectedClassWithLabel() {
         const g = document.getElementById('s-grade').value;
         const s = document.getElementById('s-system').value;
@@ -510,6 +506,51 @@
           alert('❗ حدث خطأ أثناء قراءة الملف. تأكد من الصيغة أو جرّب القالب.');
           e.target.value = '';
         }
+      }
+
+      /* ====== تصدير طلاب الفصل الحالي كـ XLSX ====== */
+      async function exportCurrentClassStudents(){
+        // حددي الفصل من القوائم الحالية
+        const { classId, label } = await getSelectedClassWithLabel();
+        if (!classId) { alert('⚠️ اختر/أضف الفصل أولًا.'); return; }
+
+        // هات الطلاب
+        const snap = await db.collection('students')
+          .where('classId','==',classId)
+          .orderBy('seatNumber')
+          .get();
+
+        if (snap.empty) { alert('ℹ️ لا يوجد طلاب لهذا الفصل بعد.'); return; }
+
+        // جهّز البيانات
+        const toAr = {
+          gender: (g)=> g==='male'?'ذكر':'أنثى',
+          religion: (r)=> r==='muslim'?'مسلم':'مسيحي'
+        };
+
+        const headers = ['الاسم','الجنس','الديانة','رقم الجلوس'];
+        const rows = [];
+        snap.forEach(doc=>{
+          const d = doc.data();
+          rows.push([
+            d.name || '',
+            toAr.gender(d.gender || ''),
+            toAr.religion(d.religion || ''),
+            d.seatNumber || ''
+          ]);
+        });
+
+        // كوّن ملف إكسل
+        const aoa = [headers, ...rows];
+        const ws  = XLSX.utils.aoa_to_sheet(aoa);
+        ws['!cols'] = [{wch:25},{wch:10},{wch:12},{wch:14}];
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'طلاب الفصل');
+
+        // اسم ملف مناسب
+        const safe = (label || 'الفصل').replace(/[\\/:*?"<>|]/g,' ').replace(/\s+/g,'_');
+        XLSX.writeFile(wb, `طلاب_${safe}.xlsx`);
       }
 
       /* ====== EVALUATIONS ====== */
