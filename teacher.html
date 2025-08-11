@@ -50,6 +50,8 @@
       <button data-sec="classes">📘 الفصول</button>
       <button data-sec="students">👨‍🎓 الطلاب</button>
       <button data-sec="tests">🧪 إدخال التقييم</button>
+      <!-- ✅ الزر الجديد يفتح صفحة التقييمات في تبويب جديد -->
+      <button id="btn-open-evals">📄 عرض التقييمات</button>
       <button onclick="auth.signOut().then(()=>location.href='index.html')">🚪 تسجيل الخروج</button>
     </aside>
 
@@ -92,6 +94,23 @@ document.addEventListener('DOMContentLoaded', function(){
     currentTeacherName = data.name || '';
     currentTeacherSubject = data.subject || '';
     document.getElementById('teacher-name').textContent = 'أ. ' + currentTeacherName;
+
+    // ✅ ربط زر عرض التقييمات لفتح تبويب جديد وتمرير بيانات المعلم
+    const openEvalsBtn = document.getElementById('btn-open-evals');
+    if (openEvalsBtn) {
+      openEvalsBtn.onclick = function(){
+        // تخزين بيانات المعلم اختياريًا
+        sessionStorage.setItem('teacherId', currentTeacherId);
+        sessionStorage.setItem('teacherName', currentTeacherName || '');
+        sessionStorage.setItem('teacherSubject', currentTeacherSubject || '');
+
+        const url = 'evaluations.html'
+          + '?teacher=' + encodeURIComponent(currentTeacherId)
+          + '&tname=' + encodeURIComponent(currentTeacherName || '')
+          + '&subject=' + encodeURIComponent(currentTeacherSubject || '');
+        window.open(url, '_blank', 'noopener'); // تبويب جديد
+      };
+    }
 
     document.querySelectorAll('.sidebar button[data-sec]')
       .forEach(function(btn){ btn.addEventListener('click', function(){ showSection(btn.dataset.sec); }); });
@@ -187,7 +206,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
           '<input type="search" id="student-search" placeholder="ابحث باسم الطالب..." list="students-list">' +
           '<datalist id="students-list"></datalist>' +
-        '</div>' +
+        </div>' +
 
         '<div class="muted">صيغة الاستيراد: <b>الاسم | الجنس | الديانة</b> (ذكر/أنثى، مسلم/مسيحي).<br>' +
         'رقم الجلوس يُنشأ تلقائيًا: [جنس][ديانة][' + RUN_WIDTH + ' خانات].</div>' +
